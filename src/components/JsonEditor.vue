@@ -1,6 +1,18 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
-import { loadSchema } from '../lib/schema';
+import { EditorView } from '@codemirror/view';
+import { EditorState, Extension } from '@codemirror/state';
+import { json } from '@codemirror/lang-json';
+import { lineNumbers } from '@codemirror/view';
+import { foldGutter } from '@codemirror/language';
+import { bracketMatching } from '@codemirror/language';
+import { highlightSelectionMatches } from '@codemirror/search';
+import { history } from '@codemirror/commands';
+import { indentOnInput, indentUnit } from '@codemirror/language';
+import { closeBrackets } from '@codemirror/autocomplete';
+import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
+import { tags as t } from '@lezer/highlight';
+import { jsonSchema } from '../lib/codemirror-json-schema';
 
 const props = defineProps<{ modelValue: string }>();
 const emit = defineEmits<{ 
@@ -8,82 +20,140 @@ const emit = defineEmits<{
   (e: 'gotoLine', line: number, column?: number): void;
 }>();
 
-let editor: any;
+let editor: EditorView | null = null;
 const container = ref<HTMLElement | null>(null);
-let monaco: any;
 let changeTimer: number | undefined;
+let resizeObserver: ResizeObserver | null = null;
+
+// JSON 语法高亮样式
+const jsonHighlightStyle = HighlightStyle.define([
+  { tag: t.string, color: '#0ea5e9' }, // 字符串：蓝色
+  { tag: t.number, color: '#8b5cf6' }, // 数字：紫色
+  { tag: t.bool, color: '#f59e0b' }, // 布尔值：橙色
+  { tag: t.null, color: '#ef4444' }, // null：红色
+  { tag: t.propertyName, color: '#10b981', fontWeight: 'bold' }, // 属性名：绿色粗体
+  { tag: t.punctuation, color: '#6b7280' }, // 标点符号：灰色
+  { tag: t.bracket, color: '#6b7280' }, // 括号：灰色
+  { tag: t.separator, color: '#6b7280' }, // 分隔符：灰色
+]);
 
 onMounted(async () => {
-  // 配置 Monaco Editor 的 Worker（在导入之前）
-  // 禁用 worker 以避免路径配置问题，使用主线程模式
-  if (typeof self !== 'undefined') {
-    (self as any).MonacoEnvironment = {
-      getWorker: function (_moduleId: string, _label: string) {
-        // 返回 null 将禁用 worker，使用主线程模式
-        // 对于 JSON 编辑器，这通常足够且避免了 worker 路径配置问题
-        return null;
+  if (!container.value) return;
+
+  // 构建扩展列表
+  const extensions: Extension[] = [
+    lineNumbers(),
+    foldGutter(),
+    bracketMatching(),
+    closeBrackets(),
+    history(),
+    indentOnInput(),
+    indentUnit.of('  '), // 2 spaces
+    highlightSelectionMatches(),
+    json(), // JSON 语言支持（包含语法高亮）
+    syntaxHighlighting(jsonHighlightStyle), // 应用语法高亮样式
+    jsonSchema(), // JSON Schema 验证
+    EditorView.updateListener.of((update) => {
+      if (update.docChanged) {
+        window.clearTimeout(changeTimer);
+        changeTimer = window.setTimeout(() => {
+          const content = editor?.state.doc.toString() || '';
+          emit('update:modelValue', content);
+        }, 300);
       }
-    };
-  }
-  
-  monaco = await import('monaco-editor');
-  
-  // 加载并注册 JSON Schema
-  const schema = await loadSchema();
-  monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
-    validate: true,
-    schemas: [{
-      uri: 'https://raw.githubusercontent.com/SagerNet/sing-box/v1.12.12/docs/schema.json',
-      fileMatch: ['*'],
-      schema: schema,
-    }],
-    allowComments: false,
+    }),
+    // 自动布局
+    EditorView.theme({
+      '&': {
+        height: '100%',
+      },
+      '.cm-scroller': {
+        overflow: 'auto',
+      },
+      '.cm-editor': {
+        height: '100%',
+      },
+      '.cm-content': {
+        minHeight: '100%',
+      },
+    }),
+  ];
+
+  // 创建编辑器
+  editor = new EditorView({
+    state: EditorState.create({
+      doc: props.modelValue ?? '',
+      extensions,
+    }),
+    parent: container.value,
   });
 
-  editor = monaco.editor.create(container.value!, {
-    value: props.modelValue ?? '',
-    language: 'json',
-    automaticLayout: true,
-    minimap: { enabled: false },
-    lineNumbers: 'on',
-    renderWhitespace: 'selection',
-    folding: true,
-    tabSize: 2,
-    formatOnPaste: true,
-    formatOnType: true,
-    // 禁用颜色提供器以避免 worker 错误
-    colorDecorators: false,
-  });
-  
-  editor.onDidChangeModelContent(() => {
-    window.clearTimeout(changeTimer);
-    changeTimer = window.setTimeout(() => {
-      emit('update:modelValue', editor.getValue());
-    }, 300);
-  });
+  // 确保编辑器在容器大小变化时自动调整
+  if (container.value) {
+    resizeObserver = new ResizeObserver(() => {
+      if (editor) {
+        editor.requestMeasure();
+      }
+    });
+    resizeObserver.observe(container.value);
+  }
 });
 
 watch(
   () => props.modelValue,
   (v) => {
-    if (editor && v !== editor.getValue()) {
-      const pos = editor.getPosition();
-      editor.setValue(v ?? '');
-      if (pos) editor.setPosition(pos);
+    if (editor && v !== editor.state.doc.toString()) {
+      const pos = editor.state.selection.main.head;
+      editor.dispatch({
+        changes: {
+          from: 0,
+          to: editor.state.doc.length,
+          insert: v ?? '',
+        },
+        selection: { anchor: Math.min(pos, (v ?? '').length) },
+      });
     }
   }
 );
 
 onBeforeUnmount(() => {
-  if (editor) editor.dispose();
+  if (resizeObserver) {
+    resizeObserver.disconnect();
+    resizeObserver = null;
+  }
+  if (editor) {
+    editor.destroy();
+    editor = null;
+  }
 });
 
 defineExpose({
   gotoLine: (line: number, column = 1) => {
-    if (editor && monaco) {
-      editor.setPosition({ lineNumber: line, column });
-      editor.revealLineInCenter(line);
+    if (editor) {
+      const lineObj = editor.state.doc.line(Math.min(line, editor.state.doc.lines));
+      const pos = lineObj.from + column - 1;
+      editor.dispatch({
+        selection: { anchor: pos, head: pos },
+        effects: EditorView.scrollIntoView(pos, { y: 'center' }),
+      });
       editor.focus();
+    }
+  },
+  getScrollPosition: () => {
+    if (editor) {
+      const scrollDOM = editor.scrollDOM;
+      return {
+        scrollTop: scrollDOM.scrollTop,
+        scrollLeft: scrollDOM.scrollLeft,
+      };
+    }
+    return { scrollTop: 0, scrollLeft: 0 };
+  },
+  setScrollPosition: (scrollTop: number, scrollLeft = 0) => {
+    if (editor) {
+      const scrollDOM = editor.scrollDOM;
+      scrollDOM.scrollTop = scrollTop;
+      scrollDOM.scrollLeft = scrollLeft;
     }
   },
 });
@@ -94,5 +164,53 @@ defineExpose({
 </template>
 
 <style scoped>
-.json-editor { width: 100%; height: 100%; }
+.json-editor { 
+  width: 100%; 
+  height: 100%; 
+  flex: 1;
+  min-height: 0;
+}
+
+/* CodeMirror 基础样式 */
+:deep(.cm-editor) {
+  height: 100%;
+  font-size: 14px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+:deep(.cm-scroller) {
+  overflow: auto;
+  height: 100%;
+}
+
+:deep(.cm-content) {
+  padding: 8px;
+  min-height: 100%;
+}
+
+:deep(.cm-focused) {
+  outline: none;
+}
+
+/* 错误高亮 */
+:deep(.cm-lint-marker-error) {
+  background-color: rgba(239, 68, 68, 0.2);
+  border-left: 3px solid #ef4444;
+}
+
+:deep(.cm-lint-marker-warning) {
+  background-color: rgba(251, 191, 36, 0.2);
+  border-left: 3px solid #fbbf24;
+}
+
+/* 行号样式 */
+:deep(.cm-lineNumbers) {
+  min-width: 30px;
+  padding-right: 8px;
+}
+
+:deep(.cm-lineNumbers .cm-gutterElement) {
+  text-align: right;
+  color: #6b7280;
+}
 </style>

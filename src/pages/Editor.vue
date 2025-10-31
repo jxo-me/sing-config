@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import Topbar from '../components/Topbar.vue';
 import JsonEditor from '../components/JsonEditor.vue';
 import DnsForm from '../components/forms/DnsForm.vue';
@@ -26,7 +26,21 @@ const mode = ref<'json' | 'form'>('json');
 const activeForm = ref<'log' | 'dns' | 'ntp' | 'certificate' | 'endpoints' | 'inbounds' | 'outbounds' | 'route' | 'services' | 'experimental'>('dns');
 const activeTab = ref<'errors' | 'diff' | 'preflight'>('errors');
 const text = ref(toPrettyJson());
-const jsonEditorRef = ref<{ gotoLine: (line: number, column?: number) => void } | null>(null);
+const jsonEditorRef = ref<{ 
+  gotoLine: (line: number, column?: number) => void;
+  getScrollPosition: () => { scrollTop: number; scrollLeft: number };
+  setScrollPosition: (scrollTop: number, scrollLeft?: number) => void;
+} | null>(null);
+const formContainerRef = ref<HTMLDivElement | null>(null);
+
+// 保存滚动位置
+const scrollPositions = ref<{
+  json: { scrollTop: number; scrollLeft: number };
+  form: { scrollTop: number; scrollLeft: number };
+}>({
+  json: { scrollTop: 0, scrollLeft: 0 },
+  form: { scrollTop: 0, scrollLeft: 0 },
+});
 
 function formatDiffValue(value: unknown): string {
   if (value === undefined || value === null) {
@@ -122,8 +136,63 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeyboardShortcuts);
 });
 
+// 保存当前模式的滚动位置
+function saveScrollPosition(currentMode: 'json' | 'form') {
+  if (currentMode === 'json' && jsonEditorRef.value) {
+    const pos = jsonEditorRef.value.getScrollPosition();
+    scrollPositions.value.json = pos;
+  } else if (currentMode === 'form' && formContainerRef.value) {
+    scrollPositions.value.form = {
+      scrollTop: formContainerRef.value.scrollTop,
+      scrollLeft: formContainerRef.value.scrollLeft,
+    };
+  }
+}
+
+// 恢复滚动位置
+async function restoreScrollPosition(targetMode: 'json' | 'form') {
+  await nextTick();
+  // 额外等待确保 DOM 完全渲染
+  setTimeout(() => {
+    if (targetMode === 'json' && jsonEditorRef.value) {
+      const pos = scrollPositions.value.json;
+      jsonEditorRef.value.setScrollPosition(pos.scrollTop, pos.scrollLeft);
+    } else if (targetMode === 'form' && formContainerRef.value) {
+      const pos = scrollPositions.value.form;
+      formContainerRef.value.scrollTop = pos.scrollTop;
+      formContainerRef.value.scrollLeft = pos.scrollLeft;
+    }
+  }, 150);
+}
+
+// 监听模式切换
+watch(mode, (newMode, oldMode) => {
+  if (oldMode) {
+    // 保存旧模式的滚动位置
+    saveScrollPosition(oldMode);
+  }
+  // 恢复新模式的滚动位置
+  restoreScrollPosition(newMode);
+});
+
+// 监听表单切换（表单模式内切换时也保存滚动位置）
+watch(activeForm, (_newForm, oldForm) => {
+  if (mode.value === 'form') {
+    // 切换表单时保存当前滚动位置
+    if (oldForm) {
+      saveScrollPosition('form');
+    }
+    // 恢复新表单的滚动位置（如果之前有保存）
+    restoreScrollPosition('form');
+  }
+});
+
 function gotoError(path: string) {
   if (!jsonEditorRef.value || !path) return;
+  // 保存表单模式的滚动位置
+  if (mode.value === 'form') {
+    saveScrollPosition('form');
+  }
   mode.value = 'json'; // 切换到 JSON 模式
   
   try {
@@ -233,8 +302,10 @@ function gotoError(path: string) {
         </nav>
       </div>
       <div class="left">
-        <JsonEditor v-if="mode === 'json'" ref="jsonEditorRef" v-model="text" @update:modelValue="onInput" />
-        <div v-else class="form-container">
+        <div v-if="mode === 'json'" class="json-editor-wrapper">
+          <JsonEditor ref="jsonEditorRef" v-model="text" @update:modelValue="onInput" />
+        </div>
+        <div v-else ref="formContainerRef" class="form-container">
           <LogForm v-if="activeForm === 'log'" />
           <DnsForm v-else-if="activeForm === 'dns'" />
           <NtpForm v-else-if="activeForm === 'ntp'" />
@@ -337,8 +408,18 @@ function gotoError(path: string) {
 .form-nav button { padding: 8px 12px; text-align: left; background: transparent; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
 .form-nav button:hover { background: var(--bg-panel, #f5f5f5); }
 .form-nav button.active { background: var(--brand, #3b82f6); color: white; }
-.left { flex: 1; padding: 8px; min-width: 0; overflow: auto; }
-.form-container { height: 100%; }
+.left { flex: 1; padding: 8px; min-width: 0; display: flex; flex-direction: column; }
+.json-editor-wrapper { flex: 1; display: flex; flex-direction: column; border: 1px solid var(--border, #e5e7eb); border-radius: 6px; overflow: hidden; }
+.json-editor-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: var(--bg-app, #f5f5f5); border-bottom: 1px solid var(--border, #e5e7eb); }
+.toolbar-left { display: flex; align-items: center; gap: 8px; }
+.toolbar-label { font-size: 12px; font-weight: 600; color: var(--text-secondary, #666); }
+.toolbar-actions { display: flex; align-items: center; gap: 6px; }
+.toolbar-btn { display: flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: 12px; background: var(--bg-panel, #fff); border: 1px solid var(--border, #e5e7eb); border-radius: 4px; cursor: pointer; transition: all 0.2s; color: var(--text-primary, #333); }
+.toolbar-btn:hover { background: var(--bg-hover, #f0f0f0); border-color: var(--brand, #3b82f6); color: var(--brand, #3b82f6); }
+.toolbar-btn.small { padding: 4px 8px; min-width: 28px; justify-content: center; }
+.toolbar-icon { font-size: 14px; line-height: 1; }
+.toolbar-divider { width: 1px; height: 20px; background: var(--border, #e5e7eb); margin: 0 4px; }
+.form-container { flex: 1; overflow-y: auto; overflow-x: hidden; }
 .placeholder { padding: 40px; text-align: center; color: var(--text-secondary, #64748b); }
 .right { width: 320px; border-left: 1px solid var(--border, #e5e7eb); padding: 8px; overflow: auto; }
 .summary { font-weight: 600; margin-bottom: 8px; }
