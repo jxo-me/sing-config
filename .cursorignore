@@ -1,0 +1,38 @@
+# 通用忽略
+.git/
+.gitignore
+.DS_Store
+*.log
+
+# 编辑器/工具
+.vscode/
+.idea/
+
+# 包与构建产物
+node_modules/
+dist/
+build/
+.cache/
+coverage/
+
+# 包管理工具缓存
+.pnpm-store/
+
+# Rust/ Tauri 产物
+target/
+src-tauri/target/
+
+# Tauri 生成内容（Android 等）
+src-tauri/gen/
+
+# 二进制及大图标资源（如无需参与索引，可忽略）
+src-tauri/icons/
+
+# 前端框架的额外产物（按需保留）
+.next/
+.turbo/
+
+# 锁文件通常无需忽略，但如需减少索引可开启
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
