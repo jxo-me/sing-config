@@ -2,17 +2,22 @@
 import { computed, ref } from 'vue';
 import { currentConfig, setConfig } from '../../stores/config';
 import { useI18n } from '../../i18n';
+import LogicalRuleTree from './LogicalRuleTree.vue';
 
 const { t, currentLocale } = useI18n();
-const expandedRules = ref<Set<number>>(new Set());
+const expandedRules = ref<Set<string>>(new Set());
 const expandedRuleSets = ref<Set<number>>(new Set());
 
-function toggleRule(idx: number) {
-  if (expandedRules.value.has(idx)) {
-    expandedRules.value.delete(idx);
+function toggleRule(path: string) {
+  if (expandedRules.value.has(path)) {
+    expandedRules.value.delete(path);
   } else {
-    expandedRules.value.add(idx);
+    expandedRules.value.add(path);
   }
+}
+
+function isExpanded(path: string): boolean {
+  return expandedRules.value.has(path);
 }
 
 function toggleRuleSet(idx: number) {
@@ -61,17 +66,40 @@ async function addLogicalRule() {
   });
 }
 
-async function addSubRule(parentIdx: number) {
-  const newRules = [...rules.value];
-  const parentRule = newRules[parentIdx];
-  if (parentRule.type === 'logical') {
-    const subRules = (parentRule.rules as Array<Record<string, unknown>>) || [];
-    subRules.push({
-      type: 'default',
-      domain: 'example.com',
-    });
+async function addSubRule(path: string, ruleType: 'default' | 'logical' = 'default') {
+  const pathParts = path.split('.').map(Number);
+  const newRules = JSON.parse(JSON.stringify(rules.value)); // 深拷贝
+  
+  let current: any = newRules;
+  for (let i = 0; i < pathParts.length - 1; i++) {
+    const idx = pathParts[i];
+    if (current[idx]?.type === 'logical') {
+      current = current[idx].rules || [];
+    } else {
+      return; // 路径无效
+    }
+  }
+  
+  const parentIdx = pathParts[pathParts.length - 1];
+  const parentRule = current[parentIdx];
+  
+  if (parentRule?.type === 'logical') {
+    const subRules = parentRule.rules || [];
+    if (ruleType === 'logical') {
+      subRules.push({
+        type: 'logical',
+        mode: 'and',
+        rules: [],
+        action: 'route',
+        outbound: 'direct',
+      });
+    } else {
+      subRules.push({
+        type: 'default',
+        domain: 'example.com',
+      });
+    }
     parentRule.rules = subRules;
-    newRules[parentIdx] = { ...parentRule };
     await setConfig({
       ...currentConfig.value,
       route: { ...route.value, rules: newRules },
@@ -79,34 +107,64 @@ async function addSubRule(parentIdx: number) {
   }
 }
 
-async function removeSubRule(parentIdx: number, subIdx: number) {
-  const newRules = [...rules.value];
-  const parentRule = newRules[parentIdx];
-  if (parentRule.type === 'logical') {
-    const subRules = (parentRule.rules as Array<Record<string, unknown>>) || [];
-    subRules.splice(subIdx, 1);
-    parentRule.rules = subRules;
-    newRules[parentIdx] = { ...parentRule };
-    await setConfig({
-      ...currentConfig.value,
-      route: { ...route.value, rules: newRules },
-    });
+async function removeSubRule(path: string, subIdx: number) {
+  const pathParts = path.split('.').map(Number);
+  const newRules = JSON.parse(JSON.stringify(rules.value)); // 深拷贝
+  
+  let current: any = newRules;
+  for (let i = 0; i < pathParts.length; i++) {
+    const idx = pathParts[i];
+    if (i === pathParts.length - 1) {
+      // 到达目标规则
+      if (current[idx]?.type === 'logical') {
+        const subRules = current[idx].rules || [];
+        subRules.splice(subIdx, 1);
+        current[idx].rules = subRules;
+      }
+      break;
+    } else {
+      if (current[idx]?.type === 'logical') {
+        current = current[idx].rules || [];
+      } else {
+        return; // 路径无效
+      }
+    }
   }
+  
+  await setConfig({
+    ...currentConfig.value,
+    route: { ...route.value, rules: newRules },
+  });
 }
 
-async function updateSubRule(parentIdx: number, subIdx: number, field: string, value: unknown) {
-  const newRules = [...rules.value];
-  const parentRule = newRules[parentIdx];
-  if (parentRule.type === 'logical') {
-    const subRules = [...((parentRule.rules as Array<Record<string, unknown>>) || [])];
-    subRules[subIdx] = { ...subRules[subIdx], [field]: value };
-    parentRule.rules = subRules;
-    newRules[parentIdx] = { ...parentRule };
-    await setConfig({
-      ...currentConfig.value,
-      route: { ...route.value, rules: newRules },
-    });
+async function updateSubRule(path: string, subIdx: number, field: string, value: unknown) {
+  const pathParts = path.split('.').map(Number);
+  const newRules = JSON.parse(JSON.stringify(rules.value)); // 深拷贝
+  
+  let current: any = newRules;
+  for (let i = 0; i < pathParts.length; i++) {
+    const idx = pathParts[i];
+    if (i === pathParts.length - 1) {
+      // 到达目标规则
+      if (current[idx]?.type === 'logical') {
+        const subRules = [...(current[idx].rules || [])];
+        subRules[subIdx] = { ...subRules[subIdx], [field]: value };
+        current[idx].rules = subRules;
+      }
+      break;
+    } else {
+      if (current[idx]?.type === 'logical') {
+        current = current[idx].rules || [];
+      } else {
+        return; // 路径无效
+      }
+    }
   }
+  
+  await setConfig({
+    ...currentConfig.value,
+    route: { ...route.value, rules: newRules },
+  });
 }
 
 async function removeRule(idx: number) {
@@ -243,9 +301,9 @@ async function updateInlineRule(ruleSetIdx: number, ruleIdx: number, field: stri
       <h4>{{ t.route.rules }}</h4>
       <div class="rules-list">
         <div v-for="(rule, idx) in rules" :key="idx" class="rule-item">
-          <div class="rule-header" @click="toggleRule(idx)">
+          <div class="rule-header" @click="toggleRule(String(idx))">
             <div class="rule-header-main">
-              <span class="expand-icon" :class="{ expanded: expandedRules.has(idx) }">▶</span>
+              <span class="expand-icon" :class="{ expanded: isExpanded(String(idx)) }">▶</span>
               <span class="rule-summary">
                 {{ currentLocale === 'zh' ? '规则' : 'Rule' }} {{ idx + 1 }}: 
                 {{ rule.action || 'route' }}
@@ -265,7 +323,7 @@ async function updateInlineRule(ruleSetIdx: number, ruleIdx: number, field: stri
               <button @click="removeRule(idx)">{{ t.inbound.remove }}</button>
             </div>
           </div>
-          <div v-show="expandedRules.has(idx)" class="rule-fields">
+          <div v-show="isExpanded(String(idx))" class="rule-fields">
             <!-- Logical Rule Mode Selector -->
             <template v-if="rule.type === 'logical'">
               <div class="field-group-section logical-mode">
@@ -285,75 +343,21 @@ async function updateInlineRule(ruleSetIdx: number, ruleIdx: number, field: stri
                 </div>
               </div>
               
-              <!-- Sub-rules for Logical Rule -->
-              <div class="field-group-section logical-subrules">
-                <h5>{{ currentLocale === 'zh' ? '子规则' : 'Sub Rules' }} ({{ (rule.rules as Array<Record<string, unknown>>)?.length || 0 }})</h5>
-                <div class="subrules-list">
-                  <div v-for="(subRule, subIdx) in (rule.rules as Array<Record<string, unknown>> || [])" :key="subIdx" class="subrule-item">
-                    <div class="subrule-header">
-                      <span class="subrule-label">{{ currentLocale === 'zh' ? '子规则' : 'Sub Rule' }} {{ subIdx + 1 }}</span>
-                      <button @click="removeSubRule(idx, subIdx)" class="remove-btn-small">{{ currentLocale === 'zh' ? '删除' : 'Remove' }}</button>
-                    </div>
-                    <div class="subrule-fields">
-                      <div class="field-group">
-                        <label>{{ currentLocale === 'zh' ? '域名' : 'Domain' }}</label>
-                        <input
-                          :value="Array.isArray(subRule.domain) ? subRule.domain.join(',') : subRule.domain"
-                          @input="updateSubRule(idx, subIdx, 'domain', ($event.target as HTMLInputElement).value.split(',').map(s => s.trim()).filter(Boolean))"
-                          type="text"
-                          placeholder="example.com"
-                        />
-                      </div>
-                      <div class="field-group">
-                        <label>{{ currentLocale === 'zh' ? '域名后缀' : 'Domain Suffix' }}</label>
-                        <input
-                          :value="Array.isArray(subRule.domain_suffix) ? subRule.domain_suffix.join(',') : subRule.domain_suffix"
-                          @input="updateSubRule(idx, subIdx, 'domain_suffix', ($event.target as HTMLInputElement).value.split(',').map(s => s.trim()).filter(Boolean))"
-                          type="text"
-                          placeholder=".cn,.com"
-                        />
-                      </div>
-                      <div class="field-group">
-                        <label>{{ currentLocale === 'zh' ? '域名关键字' : 'Domain Keyword' }}</label>
-                        <input
-                          :value="Array.isArray(subRule.domain_keyword) ? subRule.domain_keyword.join(',') : subRule.domain_keyword"
-                          @input="updateSubRule(idx, subIdx, 'domain_keyword', ($event.target as HTMLInputElement).value.split(',').map(s => s.trim()).filter(Boolean))"
-                          type="text"
-                          placeholder="test"
-                        />
-                      </div>
-                      <div class="field-group">
-                        <label>GeoIP</label>
-                        <input
-                          :value="Array.isArray(subRule.geoip) ? subRule.geoip.join(',') : subRule.geoip"
-                          @input="updateSubRule(idx, subIdx, 'geoip', ($event.target as HTMLInputElement).value.split(',').map(s => s.trim()).filter(Boolean))"
-                          type="text"
-                          placeholder="cn,private"
-                        />
-                      </div>
-                      <div class="field-group">
-                        <label>{{ currentLocale === 'zh' ? 'IP CIDR' : 'IP CIDR' }}</label>
-                        <input
-                          :value="Array.isArray(subRule.ip_cidr) ? subRule.ip_cidr.join(',') : subRule.ip_cidr"
-                          @input="updateSubRule(idx, subIdx, 'ip_cidr', ($event.target as HTMLInputElement).value.split(',').map(s => s.trim()).filter(Boolean))"
-                          type="text"
-                          placeholder="10.0.0.0/24"
-                        />
-                      </div>
-                      <div class="field-group">
-                        <label>{{ currentLocale === 'zh' ? '端口' : 'Port' }}</label>
-                        <input
-                          :value="Array.isArray(subRule.port) ? subRule.port.join(',') : subRule.port"
-                          @input="updateSubRule(idx, subIdx, 'port', ($event.target as HTMLInputElement).value.split(',').map(s => s.trim()).filter(Boolean).map(Number).filter(n => !isNaN(n)))"
-                          type="text"
-                          placeholder="80,443"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <button @click="addSubRule(idx)" class="add-subrule-btn">{{ currentLocale === 'zh' ? '添加子规则' : 'Add Sub Rule' }}</button>
-                </div>
-              </div>
+              <!-- Sub-rules for Logical Rule (Recursive) -->
+              <LogicalRuleTree
+                :rules="(rule.rules as Array<Record<string, unknown>>) || []"
+                :path="String(idx)"
+                :level="0"
+                :is-expanded="(path) => {
+                  // 默认展开顶级规则
+                  if (path === String(idx)) return expandedRules.has(path) || expandedRules.size === 0;
+                  return expandedRules.has(path);
+                }"
+                @add-sub-rule="(path, type) => addSubRule(path, type)"
+                @remove-sub-rule="(path, idx) => removeSubRule(path, idx)"
+                @update-sub-rule="(path, idx, field, value) => updateSubRule(path, idx, field, value)"
+                @toggle-rule="toggleRule"
+              />
               
               <!-- Action for Logical Rule -->
               <div class="field-group-section">

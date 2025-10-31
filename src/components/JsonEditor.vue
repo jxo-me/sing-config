@@ -14,6 +14,18 @@ let monaco: any;
 let changeTimer: number | undefined;
 
 onMounted(async () => {
+  // 配置 Monaco Editor 的 Worker（在导入之前）
+  // 禁用 worker 以避免路径配置问题，使用主线程模式
+  if (typeof self !== 'undefined') {
+    (self as any).MonacoEnvironment = {
+      getWorker: function (_moduleId: string, _label: string) {
+        // 返回 null 将禁用 worker，使用主线程模式
+        // 对于 JSON 编辑器，这通常足够且避免了 worker 路径配置问题
+        return null;
+      }
+    };
+  }
+  
   monaco = await import('monaco-editor');
   
   // 加载并注册 JSON Schema
@@ -39,6 +51,8 @@ onMounted(async () => {
     tabSize: 2,
     formatOnPaste: true,
     formatOnType: true,
+    // 禁用颜色提供器以避免 worker 错误
+    colorDecorators: false,
   });
   
   editor.onDidChangeModelContent(() => {

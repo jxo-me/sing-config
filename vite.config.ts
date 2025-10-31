@@ -29,4 +29,11 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+  // 配置 worker 选项以支持 Monaco Editor
+  worker: {
+    format: 'es',
+  },
+  optimizeDeps: {
+    exclude: ['monaco-editor'],
+  },
 }));
