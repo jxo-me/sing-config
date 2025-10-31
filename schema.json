@@ -1,0 +1,2146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/SagerNet/sing-box/v1.12.12/docs/schema.json",
+  "title": "sing-box configuration schema",
+  "description": "JSON Schema for sing-box configuration format. Schema version: 1.12.12 (compatible with sing-box v1.12.12+)",
+  "x-schema-version": "1.12.12",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "log": { "$ref": "#/definitions/LogOptions" },
+    "dns": { "$ref": "#/definitions/DNSOptions" },
+    "ntp": { "$ref": "#/definitions/NTPOptions" },
+    "certificate": { "$ref": "#/definitions/CertificateOptions" },
+    "endpoints": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/Endpoint" }
+    },
+    "inbounds": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/Inbound" }
+    },
+    "outbounds": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/Outbound" }
+    },
+    "route": { "$ref": "#/definitions/RouteOptions" },
+    "services": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/Service" }
+    },
+    "experimental": { "$ref": "#/definitions/ExperimentalOptions" }
+  },
+  "definitions": {
+    "LogOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "disabled": { "type": "boolean" },
+        "level": { "type": "string", "enum": ["trace","debug","info","warn","error","fatal","panic"] },
+        "output": { "type": "string" },
+        "timestamp": { "type": "boolean" }
+      }
+    },
+    "DNSOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "servers": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DNSServer" }
+        },
+        "rules": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DNSRule" }
+        },
+        "final": { "type": "string" },
+        "reverse_mapping": { "type": "boolean" },
+        "strategy": { "$ref": "#/definitions/DomainStrategy" },
+        "disable_cache": { "type": "boolean" },
+        "disable_expire": { "type": "boolean" },
+        "independent_cache": { "type": "boolean" },
+        "cache_capacity": { "type": "integer", "minimum": 0 },
+        "client_subnet": { "$ref": "#/definitions/Prefixable" }
+      }
+    },
+    "DNSServer": {
+      "type": "object",
+      "oneOf": [
+        { "$ref": "#/definitions/LocalDNSServerOptions" },
+        { "$ref": "#/definitions/HostsDNSServerOptions" },
+        { "$ref": "#/definitions/TCPDNSServerOptions" },
+        { "$ref": "#/definitions/UDPDNSServerOptions" },
+        { "$ref": "#/definitions/RemoteTLSDNSServerOptions" },
+        { "$ref": "#/definitions/QUICDNSServerOptions" },
+        { "$ref": "#/definitions/RemoteHTTPSDNSServerOptions" },
+        { "$ref": "#/definitions/H3DNSServerOptions" },
+        { "$ref": "#/definitions/DHCPDNSServerOptions" },
+        { "$ref": "#/definitions/FakeIPDNSServerOptions" },
+        { "$ref": "#/definitions/TailscaleDNSServerOptions" },
+        { "$ref": "#/definitions/ResolvedDNSServerOptions" }
+      ]
+    },
+    "LocalDNSServerOptions": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "const": "local" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "TCPDNSServerOptions": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server"],
+          "properties": {
+            "type": { "const": "tcp" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "UDPDNSServerOptions": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server"],
+          "properties": {
+            "type": { "const": "udp" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "RemoteTLSDNSServerOptions": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server"],
+          "properties": {
+            "type": { "const": "tls" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "tls": { "$ref": "#/definitions/OutboundTLSOptions" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "QUICDNSServerOptions": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server"],
+          "properties": {
+            "type": { "const": "quic" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "tls": { "$ref": "#/definitions/OutboundTLSOptions" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "RemoteHTTPSDNSServerOptions": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server"],
+          "properties": {
+            "type": { "const": "https" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "path": { "type": "string" },
+            "method": { "type": "string" },
+            "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+            "tls": { "$ref": "#/definitions/OutboundTLSOptions" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "H3DNSServerOptions": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server"],
+          "properties": {
+            "type": { "const": "h3" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "path": { "type": "string" },
+            "method": { "type": "string" },
+            "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+            "tls": { "$ref": "#/definitions/OutboundTLSOptions" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "HostsDNSServerOptions": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "hosts" },
+        "path": { "type": "array", "items": { "type": "string" } },
+        "predefined": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/IPAddr" }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "DHCPDNSServerOptions": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "const": "dhcp" },
+            "interface": { "type": "string" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "FakeIPDNSServerOptions": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "fakeip" },
+        "inet4_range": { "$ref": "#/definitions/CIDR" },
+        "inet6_range": { "$ref": "#/definitions/CIDR" }
+      },
+      "additionalProperties": false
+    },
+    "TailscaleDNSServerOptions": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "tailscale" },
+        "endpoint": { "type": "string" },
+        "accept_default_resolvers": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "ResolvedDNSServerOptions": {
+      "type": "object",
+      "required": ["type","service"],
+      "properties": {
+        "type": { "const": "resolved" },
+        "service": { "type": "string" },
+        "accept_default_resolvers": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "NTPOptions": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "interval": { "$ref": "#/definitions/Duration" },
+            "write_to_system": { "type": "boolean" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+          }
+        }
+      ]
+    },
+    "CertificateOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "store": { "type": "string", "enum": ["", "system", "mozilla", "none"] },
+        "certificate": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "certificate_path": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "certificate_directory_path": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] }
+      }
+    },
+    "Endpoint": {
+      "type": "object",
+      "oneOf": [
+        { "$ref": "#/definitions/WireGuardEndpoint" },
+        { "$ref": "#/definitions/TailscaleEndpoint" }
+      ]
+    },
+    "WireGuardEndpoint": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","address","private_key","peers"],
+          "properties": {
+            "type": { "const": "wireguard" },
+            "tag": { "type": "string" },
+            "system": { "type": "boolean" },
+            "name": { "type": "string" },
+            "mtu": { "type": "integer", "minimum": 0 },
+            "address": {
+              "oneOf": [
+                { "type": "string" },
+                { "type": "array", "items": { "$ref": "#/definitions/CIDR" } }
+              ]
+            },
+            "private_key": { "type": "string" },
+            "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "peers": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/WireGuardPeer" }
+            },
+            "udp_timeout": { "$ref": "#/definitions/Duration" },
+            "workers": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "WireGuardPeer": {
+      "type": "object",
+      "required": ["public_key","allowed_ips"],
+      "properties": {
+        "address": { "type": "string" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "public_key": { "type": "string" },
+        "pre_shared_key": { "type": "string" },
+        "allowed_ips": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "$ref": "#/definitions/CIDR" } }
+          ]
+        },
+        "persistent_keepalive_interval": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "reserved": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 255 } }
+      },
+      "additionalProperties": false
+    },
+    "TailscaleEndpoint": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "const": "tailscale" },
+            "tag": { "type": "string" },
+            "state_directory": { "type": "string" },
+            "auth_key": { "type": "string" },
+            "control_url": { "type": "string" },
+            "ephemeral": { "type": "boolean" },
+            "hostname": { "type": "string" },
+            "accept_routes": { "type": "boolean" },
+            "exit_node": { "type": "string" },
+            "exit_node_allow_lan_access": { "type": "boolean" },
+            "advertise_routes": { "type": "array", "items": { "$ref": "#/definitions/CIDR" } },
+            "advertise_exit_node": { "type": "boolean" },
+            "udp_timeout": { "$ref": "#/definitions/Duration" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Inbound": {
+      "type": "object",
+      "oneOf": [
+        { "$ref": "#/definitions/SocksInbound" },
+        { "$ref": "#/definitions/HTTPInbound" },
+        { "$ref": "#/definitions/ShadowsocksInbound" },
+        { "$ref": "#/definitions/HTTPMixedInbound" },
+        { "$ref": "#/definitions/DirectInbound" },
+        { "$ref": "#/definitions/TunInbound" },
+        { "$ref": "#/definitions/TUICInbound" },
+        { "$ref": "#/definitions/NaiveInbound" },
+        { "$ref": "#/definitions/TrojanInbound" },
+        { "$ref": "#/definitions/ShadowTLSInbound" },
+        { "$ref": "#/definitions/AnyTLSInbound" },
+        { "$ref": "#/definitions/VMessInbound" },
+        { "$ref": "#/definitions/VLESSInbound" },
+        { "$ref": "#/definitions/HysteriaInbound" },
+        { "$ref": "#/definitions/Hysteria2Inbound" },
+        { "$ref": "#/definitions/RedirectInbound" },
+        { "$ref": "#/definitions/TProxyInbound" }
+      ]
+    },
+    "SocksInbound": {
+      "type": "object",
+      "required": ["type","listen_port"],
+      "properties": {
+        "type": { "const": "socks" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "users": { "type": "array", "items": { "$ref": "#/definitions/AuthUser" } }
+      },
+      "additionalProperties": true
+    },
+    "HTTPInbound": {
+      "type": "object",
+      "required": ["type","listen_port"],
+      "properties": {
+        "type": { "const": "http" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "users": { "type": "array", "items": { "$ref": "#/definitions/AuthUser" } }
+      },
+      "additionalProperties": true
+    },
+    "HTTPMixedInbound": {
+      "type": "object",
+      "required": ["type","listen_port"],
+      "properties": {
+        "type": { "const": "mixed" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "users": { "type": "array", "items": { "$ref": "#/definitions/AuthUser" } },
+        "domain_resolver": { "$ref": "#/definitions/DomainResolveOptions" },
+        "set_system_proxy": { "type": "boolean" },
+        "tls": { "$ref": "#/definitions/InboundTLSOptions" }
+      },
+      "additionalProperties": true
+    },
+    "DirectInbound": {
+      "type": "object",
+      "required": ["type","listen_port"],
+      "properties": {
+        "type": { "const": "direct" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "network": { "$ref": "#/definitions/NetworkList" },
+        "override_address": { "type": "string" },
+        "override_port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      },
+      "additionalProperties": true
+    },
+    "TunInbound": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "tun" },
+        "tag": { "type": "string" },
+        "interface_name": { "type": "string" },
+        "mtu": { "type": "integer", "minimum": 0 },
+        "address": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "$ref": "#/definitions/CIDR" } } ] },
+        "auto_route": { "type": "boolean" },
+        "iproute2_table_index": { "type": "integer" },
+        "iproute2_rule_index": { "type": "integer" },
+        "auto_redirect": { "type": "boolean" },
+        "auto_redirect_input_mark": { "type": "string" },
+        "auto_redirect_output_mark": { "type": "string" },
+        "loopback_address": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "strict_route": { "type": "boolean" },
+        "route_address": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "$ref": "#/definitions/CIDR" } } ] },
+        "route_address_set": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "route_exclude_address": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "$ref": "#/definitions/CIDR" } } ] },
+        "route_exclude_address_set": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "include_interface": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "exclude_interface": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "include_uid": { "oneOf": [ { "type": "integer" }, { "type": "array", "items": { "type": "integer" } } ] },
+        "include_uid_range": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "exclude_uid": { "oneOf": [ { "type": "integer" }, { "type": "array", "items": { "type": "integer" } } ] },
+        "exclude_uid_range": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "include_android_user": { "oneOf": [ { "type": "integer" }, { "type": "array", "items": { "type": "integer" } } ] },
+        "include_package": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "exclude_package": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "udp_timeout": { "$ref": "#/definitions/Duration" },
+        "stack": { "type": "string" },
+        "platform": { "type": "object", "additionalProperties": true }
+      },
+      "additionalProperties": true
+    },
+    "TUICInbound": {
+      "type": "object",
+      "required": ["type","listen_port"],
+      "properties": {
+        "type": { "const": "tuic" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "users": { "type": "array", "items": { "$ref": "#/definitions/TUICUser" } },
+        "congestion_control": { "type": "string" },
+        "auth_timeout": { "$ref": "#/definitions/Duration" },
+        "zero_rtt_handshake": { "type": "boolean" },
+        "heartbeat": { "$ref": "#/definitions/Duration" },
+        "tls": { "$ref": "#/definitions/InboundTLSOptions" }
+      },
+      "additionalProperties": true
+    },
+    "TUICUser": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "uuid": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "NaiveInbound": {
+      "type": "object",
+      "required": ["type","listen_port","users"],
+      "properties": {
+        "type": { "const": "naive" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "network": { "$ref": "#/definitions/NetworkList" },
+        "users": { "type": "array", "items": { "$ref": "#/definitions/AuthUser" } },
+        "tls": { "$ref": "#/definitions/InboundTLSOptions" }
+      },
+      "additionalProperties": true
+    },
+    "TrojanInbound": {
+      "type": "object",
+      "required": ["type","listen_port","users"],
+      "properties": {
+        "type": { "const": "trojan" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "users": { "type": "array", "items": { "$ref": "#/definitions/TrojanUser" } },
+        "tls": { "$ref": "#/definitions/InboundTLSOptions" },
+        "fallback": { "$ref": "#/definitions/ServerOptions" },
+        "fallback_for_alpn": { "type": "object", "additionalProperties": { "$ref": "#/definitions/ServerOptions" } },
+        "multiplex": { "$ref": "#/definitions/InboundMultiplexOptions" },
+        "transport": { "$ref": "#/definitions/V2RayTransportOptions" }
+      },
+      "additionalProperties": true
+    },
+    "TrojanUser": {
+      "type": "object",
+      "required": ["name","password"],
+      "properties": {
+        "name": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "AnyTLSInbound": {
+      "type": "object",
+      "required": ["type","listen_port"],
+      "properties": {
+        "type": { "const": "anytls" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "tls": { "$ref": "#/definitions/InboundTLSOptions" },
+        "users": { "type": "array", "items": { "$ref": "#/definitions/AnyTLSUser" } },
+        "padding_scheme": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] }
+      },
+      "additionalProperties": true
+    },
+    "AnyTLSUser": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ShadowTLSInbound": {
+      "type": "object",
+      "required": ["type","listen_port"],
+      "properties": {
+        "type": { "const": "shadowtls" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "version": { "type": "integer" },
+        "password": { "type": "string" },
+        "users": { "type": "array", "items": { "$ref": "#/definitions/ShadowTLSUser" } },
+        "handshake": { "$ref": "#/definitions/ShadowTLSHandshakeOptions" },
+        "handshake_for_server_name": { "type": "object", "additionalProperties": { "$ref": "#/definitions/ShadowTLSHandshakeOptions" } },
+        "strict_mode": { "type": "boolean" },
+        "wildcard_sni": { "type": "string", "enum": ["off","authed","all"] }
+      },
+      "additionalProperties": true
+    },
+    "ShadowTLSUser": {
+      "type": "object",
+      "properties": { "name": { "type": "string" }, "password": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "ShadowTLSHandshakeOptions": {
+      "type": "object",
+      "properties": {
+        "server": { "type": "string" },
+        "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      },
+      "additionalProperties": true
+    },
+    "VMessInbound": {
+      "type": "object",
+      "required": ["type","listen_port","users"],
+      "properties": {
+        "type": { "const": "vmess" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "users": { "type": "array", "items": { "$ref": "#/definitions/VMessUser" } },
+        "tls": { "$ref": "#/definitions/InboundTLSOptions" },
+        "multiplex": { "$ref": "#/definitions/InboundMultiplexOptions" },
+        "transport": { "$ref": "#/definitions/V2RayTransportOptions" }
+      },
+      "additionalProperties": true
+    },
+    "VMessUser": {
+      "type": "object",
+      "required": ["name","uuid"],
+      "properties": { "name": { "type": "string" }, "uuid": { "type": "string" }, "alterId": { "type": "integer" } },
+      "additionalProperties": false
+    },
+    "VLESSInbound": {
+      "type": "object",
+      "required": ["type","listen_port","users"],
+      "properties": {
+        "type": { "const": "vless" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "users": { "type": "array", "items": { "$ref": "#/definitions/VLESSUser" } },
+        "tls": { "$ref": "#/definitions/InboundTLSOptions" },
+        "multiplex": { "$ref": "#/definitions/InboundMultiplexOptions" },
+        "transport": { "$ref": "#/definitions/V2RayTransportOptions" }
+      },
+      "additionalProperties": true
+    },
+    "VLESSUser": {
+      "type": "object",
+      "required": ["name","uuid"],
+      "properties": { "name": { "type": "string" }, "uuid": { "type": "string" }, "flow": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "HysteriaInbound": {
+      "type": "object",
+      "required": ["type","listen_port"],
+      "properties": {
+        "type": { "const": "hysteria" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "up": { "type": "string" },
+        "up_mbps": { "type": "integer" },
+        "down": { "type": "string" },
+        "down_mbps": { "type": "integer" },
+        "obfs": { "type": "string" },
+        "users": { "type": "array", "items": { "$ref": "#/definitions/HysteriaUser" } },
+        "recv_window_conn": { "type": "integer" },
+        "recv_window_client": { "type": "integer" },
+        "max_conn_client": { "type": "integer" },
+        "disable_mtu_discovery": { "type": "boolean" },
+        "tls": { "$ref": "#/definitions/InboundTLSOptions" }
+      },
+      "additionalProperties": true
+    },
+    "HysteriaUser": {
+      "type": "object",
+      "properties": { "name": { "type": "string" }, "auth": { "type": "string" }, "auth_str": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "Hysteria2Inbound": {
+      "type": "object",
+      "required": ["type","listen_port"],
+      "properties": {
+        "type": { "const": "hysteria2" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "up_mbps": { "type": "integer" },
+        "down_mbps": { "type": "integer" },
+        "obfs": { "$ref": "#/definitions/Hysteria2Obfs" },
+        "users": { "type": "array", "items": { "$ref": "#/definitions/Hysteria2User" } },
+        "ignore_client_bandwidth": { "type": "boolean" },
+        "tls": { "$ref": "#/definitions/InboundTLSOptions" },
+        "masquerade": { "$ref": "#/definitions/Hysteria2Masquerade" },
+        "brutal_debug": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "Hysteria2Obfs": {
+      "type": "object",
+      "properties": { "type": { "type": "string" }, "password": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "Hysteria2User": {
+      "type": "object",
+      "properties": { "name": { "type": "string" }, "password": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "Hysteria2Masquerade": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["file","proxy","string"] },
+        "directory": { "type": "string" },
+        "url": { "type": "string" },
+        "rewrite_host": { "type": "boolean" },
+        "status_code": { "type": "integer" },
+        "headers": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } } },
+        "content": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "RedirectInbound": {
+      "type": "object",
+      "required": ["type","listen_port"],
+      "properties": {
+        "type": { "const": "redirect" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      },
+      "additionalProperties": true
+    },
+    "TProxyInbound": {
+      "type": "object",
+      "required": ["type","listen_port"],
+      "properties": {
+        "type": { "const": "tproxy" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "network": { "$ref": "#/definitions/NetworkList" }
+      },
+      "additionalProperties": true
+    },
+    "ServerOptions": {
+      "type": "object",
+      "properties": { "server": { "type": "string" }, "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 } },
+      "additionalProperties": false
+    },
+    "V2RayTransportOptions": {
+      "type": "object",
+      "oneOf": [
+        { "$ref": "#/definitions/V2RayHTTPTransport" },
+        { "$ref": "#/definitions/V2RayWebSocketTransport" },
+        { "$ref": "#/definitions/V2RayQUICTransport" },
+        { "$ref": "#/definitions/V2RayGRPCTransport" },
+        { "$ref": "#/definitions/V2RayHTTPUpgradeTransport" }
+      ]
+    },
+    "V2RayHTTPTransport": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "http" },
+        "host": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "path": { "type": "string" },
+        "method": { "type": "string" },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+        "idle_timeout": { "$ref": "#/definitions/Duration" },
+        "ping_timeout": { "$ref": "#/definitions/Duration" }
+      }
+    },
+    "V2RayWebSocketTransport": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "ws" },
+        "path": { "type": "string" },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+        "max_early_data": { "type": "integer", "minimum": 0 },
+        "early_data_header_name": { "type": "string" }
+      }
+    },
+    "V2RayQUICTransport": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "quic" }
+      }
+    },
+    "V2RayGRPCTransport": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "grpc" },
+        "service_name": { "type": "string" },
+        "idle_timeout": { "$ref": "#/definitions/Duration" },
+        "ping_timeout": { "$ref": "#/definitions/Duration" },
+        "permit_without_stream": { "type": "boolean" }
+      }
+    },
+    "V2RayHTTPUpgradeTransport": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "httpupgrade" },
+        "host": { "type": "string" },
+        "path": { "type": "string" },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "ShadowsocksInbound": {
+      "type": "object",
+      "required": ["type","listen_port","method"],
+      "properties": {
+        "type": { "const": "shadowsocks" },
+        "tag": { "type": "string" },
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "network": { "$ref": "#/definitions/NetworkList" },
+        "method": { "type": "string" },
+        "password": { "type": "string" },
+        "users": { "type": "array", "items": { "$ref": "#/definitions/SSUser" } },
+        "destinations": { "type": "array", "items": { "$ref": "#/definitions/SSDestination" } },
+        "multiplex": { "type": "object" },
+        "managed": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "Outbound": {
+      "type": "object",
+      "oneOf": [
+        { "$ref": "#/definitions/DirectOutbound" },
+        { "$ref": "#/definitions/SocksOutbound" },
+        { "$ref": "#/definitions/HTTPOutbound" },
+        { "$ref": "#/definitions/ShadowsocksOutbound" },
+        { "$ref": "#/definitions/SSHOutbound" },
+        { "$ref": "#/definitions/TUICOutbound" },
+        { "$ref": "#/definitions/VMessOutbound" },
+        { "$ref": "#/definitions/VLESSOutbound" },
+        { "$ref": "#/definitions/TrojanOutbound" },
+        { "$ref": "#/definitions/HysteriaOutbound" },
+        { "$ref": "#/definitions/Hysteria2Outbound" },
+        { "$ref": "#/definitions/AnyTLSOutbound" },
+        { "$ref": "#/definitions/ShadowTLSOutbound" },
+        { "$ref": "#/definitions/WireGuardOutbound" },
+        { "$ref": "#/definitions/TorOutbound" },
+        { "$ref": "#/definitions/SelectorOutbound" },
+        { "$ref": "#/definitions/URLTestOutbound" }
+      ]
+    },
+    "DirectOutbound": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "const": "direct" },
+            "tag": { "type": "string" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "SocksOutbound": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server","server_port"],
+          "properties": {
+            "type": { "const": "socks" },
+            "tag": { "type": "string" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "username": { "type": "string" },
+            "password": { "type": "string" },
+            "version": { "type": "string" },
+            "network": { "$ref": "#/definitions/NetworkList" },
+            "udp_over_tcp": { "$ref": "#/definitions/UDPOverTCPOptions" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "HTTPOutbound": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server","server_port"],
+          "properties": {
+            "type": { "const": "http" },
+            "tag": { "type": "string" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "username": { "type": "string" },
+            "password": { "type": "string" },
+            "path": { "type": "string" },
+            "headers": { "type": "object", "additionalProperties": { "type": "string" } }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "ShadowsocksOutbound": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server","server_port","method","password"],
+          "properties": {
+            "type": { "const": "shadowsocks" },
+            "tag": { "type": "string" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "method": { "type": "string" },
+            "password": { "type": "string" },
+            "plugin": { "type": "string" },
+            "plugin_opts": { "type": "string" },
+            "network": { "$ref": "#/definitions/NetworkList" },
+            "udp_over_tcp": { "$ref": "#/definitions/UDPOverTCPOptions" },
+            "multiplex": { "type": "object" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "SSHOutbound": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server","server_port","user"],
+          "properties": {
+            "type": { "const": "ssh" },
+            "tag": { "type": "string" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "user": { "type": "string" },
+            "password": { "type": "string" },
+            "private_key": { "type": "string" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "TUICOutbound": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server","server_port","uuid","password"],
+          "properties": {
+            "type": { "const": "tuic" },
+            "tag": { "type": "string" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "uuid": { "type": "string" },
+            "password": { "type": "string" },
+            "congestion_control": { "type": "string" },
+            "udp_relay_mode": { "type": "string" },
+            "udp_over_stream": { "type": "boolean" },
+            "zero_rtt_handshake": { "type": "boolean" },
+            "heartbeat": { "$ref": "#/definitions/Duration" },
+            "network": { "$ref": "#/definitions/NetworkList" },
+            "tls": { "$ref": "#/definitions/OutboundTLSOptions" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "VMessOutbound": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server","server_port","uuid","security"],
+          "properties": {
+            "type": { "const": "vmess" },
+            "tag": { "type": "string" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "uuid": { "type": "string" },
+            "security": { "type": "string" },
+            "alter_id": { "type": "integer" },
+            "global_padding": { "type": "boolean" },
+            "authenticated_length": { "type": "boolean" },
+            "network": { "$ref": "#/definitions/NetworkList" },
+            "tls": { "$ref": "#/definitions/OutboundTLSOptions" },
+            "packet_encoding": { "type": "string" },
+            "multiplex": { "$ref": "#/definitions/OutboundMultiplexOptions" },
+            "transport": { "$ref": "#/definitions/V2RayTransportOptions" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "VLESSOutbound": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server","server_port","uuid"],
+          "properties": {
+            "type": { "const": "vless" },
+            "tag": { "type": "string" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "uuid": { "type": "string" },
+            "flow": { "type": "string" },
+            "network": { "$ref": "#/definitions/NetworkList" },
+            "tls": { "$ref": "#/definitions/OutboundTLSOptions" },
+            "multiplex": { "$ref": "#/definitions/OutboundMultiplexOptions" },
+            "transport": { "$ref": "#/definitions/V2RayTransportOptions" },
+            "packet_encoding": { "type": "string" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "TrojanOutbound": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server","server_port","password"],
+          "properties": {
+            "type": { "const": "trojan" },
+            "tag": { "type": "string" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "password": { "type": "string" },
+            "network": { "$ref": "#/definitions/NetworkList" },
+            "tls": { "$ref": "#/definitions/OutboundTLSOptions" },
+            "multiplex": { "$ref": "#/definitions/OutboundMultiplexOptions" },
+            "transport": { "$ref": "#/definitions/V2RayTransportOptions" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "HysteriaOutbound": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server","server_port","tls"],
+          "properties": {
+            "type": { "const": "hysteria" },
+            "tag": { "type": "string" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "server_ports": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+            "hop_interval": { "$ref": "#/definitions/Duration" },
+            "up": { "type": "string" },
+            "up_mbps": { "type": "integer" },
+            "down": { "type": "string" },
+            "down_mbps": { "type": "integer" },
+            "obfs": { "type": "string" },
+            "auth": { "type": "string" },
+            "auth_str": { "type": "string" },
+            "recv_window_conn": { "type": "integer" },
+            "recv_window": { "type": "integer" },
+            "disable_mtu_discovery": { "type": "boolean" },
+            "network": { "$ref": "#/definitions/NetworkList" },
+            "tls": { "$ref": "#/definitions/OutboundTLSOptions" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "Hysteria2Outbound": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server","tls"],
+          "properties": {
+            "type": { "const": "hysteria2" },
+            "tag": { "type": "string" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "server_ports": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+            "hop_interval": { "$ref": "#/definitions/Duration" },
+            "up_mbps": { "type": "integer" },
+            "down_mbps": { "type": "integer" },
+            "obfs": { "$ref": "#/definitions/Hysteria2Obfs" },
+            "password": { "type": "string" },
+            "network": { "$ref": "#/definitions/NetworkList" },
+            "tls": { "$ref": "#/definitions/OutboundTLSOptions" },
+            "brutal_debug": { "type": "boolean" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "AnyTLSOutbound": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server","server_port"],
+          "properties": {
+            "type": { "const": "anytls" },
+            "tag": { "type": "string" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "tls": { "$ref": "#/definitions/OutboundTLSOptions" },
+            "password": { "type": "string" },
+            "idle_session_check_interval": { "$ref": "#/definitions/Duration" },
+            "idle_session_timeout": { "$ref": "#/definitions/Duration" },
+            "min_idle_session": { "type": "integer" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "ShadowTLSOutbound": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","server","server_port"],
+          "properties": {
+            "type": { "const": "shadowtls" },
+            "tag": { "type": "string" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "version": { "type": "integer" },
+            "password": { "type": "string" },
+            "tls": { "$ref": "#/definitions/OutboundTLSOptions" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "WireGuardOutbound": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type","local_address","private_key"],
+          "properties": {
+            "type": { "const": "wireguard" },
+            "tag": { "type": "string" },
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "system_interface": { "type": "boolean" },
+            "interface_name": { "type": "string" },
+            "local_address": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "$ref": "#/definitions/CIDR" } } ] },
+            "private_key": { "type": "string" },
+            "peers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "server": { "type": "string" },
+                  "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+                  "public_key": { "type": "string" },
+                  "pre_shared_key": { "type": "string" },
+                  "allowed_ips": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "$ref": "#/definitions/CIDR" } } ] },
+                  "reserved": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 255 } }
+                },
+                "additionalProperties": false
+              }
+            },
+            "peer_public_key": { "type": "string" },
+            "pre_shared_key": { "type": "string" },
+            "reserved": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 255 } },
+            "workers": { "type": "integer" },
+            "mtu": { "type": "integer" },
+            "network": { "$ref": "#/definitions/NetworkList" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "TorOutbound": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "const": "tor" },
+            "tag": { "type": "string" },
+            "executable_path": { "type": "string" },
+            "extra_args": { "type": "array", "items": { "type": "string" } },
+            "data_directory": { "type": "string" },
+            "torrc": { "type": "object", "additionalProperties": { "type": ["string","integer","boolean"] } }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "SelectorOutbound": {
+      "type": "object",
+      "required": ["type","outbounds"],
+      "properties": {
+        "type": { "const": "selector" },
+        "tag": { "type": "string" },
+        "outbounds": { "type": "array", "items": { "type": "string" } },
+        "default": { "type": "string" },
+        "interrupt_exist_connections": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "URLTestOutbound": {
+      "type": "object",
+      "required": ["type","outbounds"],
+      "properties": {
+        "type": { "const": "urltest" },
+        "tag": { "type": "string" },
+        "outbounds": { "type": "array", "items": { "type": "string" } },
+        "url": { "type": "string" },
+        "interval": { "$ref": "#/definitions/Duration" },
+        "tolerance": { "type": "integer", "minimum": 0 },
+        "idle_timeout": { "$ref": "#/definitions/Duration" },
+        "interrupt_exist_connections": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "RouteOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "geoip": { "$ref": "#/definitions/GeoIPOptions" },
+        "geosite": { "$ref": "#/definitions/GeositeOptions" },
+        "rules": { "type": "array", "items": { "$ref": "#/definitions/Rule" } },
+        "rule_set": { "type": "array", "items": { "$ref": "#/definitions/RuleSet" } },
+        "final": { "type": "string" },
+        "find_process": { "type": "boolean" },
+        "auto_detect_interface": { "type": "boolean" },
+        "override_android_vpn": { "type": "boolean" },
+        "default_interface": { "type": "string" },
+        "default_mark": { "type": "integer" },
+        "default_domain_resolver": { "$ref": "#/definitions/DomainResolveOptions" },
+        "default_network_strategy": { "$ref": "#/definitions/NetworkStrategy" },
+        "default_network_type": { "$ref": "#/definitions/InterfaceTypeList" },
+        "default_fallback_network_type": { "$ref": "#/definitions/InterfaceTypeList" },
+        "default_fallback_delay": { "$ref": "#/definitions/Duration" }
+      }
+    },
+    "Rule": {
+      "type": "object",
+      "oneOf": [ { "$ref": "#/definitions/DefaultRule" }, { "$ref": "#/definitions/LogicalRule" } ]
+    },
+    "DefaultRule": {
+      "type": "object",
+      "properties": {
+        "type": { "enum": ["", "default"] },
+        "inbound": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "inbound_type": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "ip_version": { "type": "integer", "enum": [4, 6] },
+        "ip_cidr": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "$ref": "#/definitions/CIDR" } } ] },
+        "ip_is_private": { "type": "boolean" },
+        "source_ip_cidr": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "$ref": "#/definitions/CIDR" } } ] },
+        "source_ip_is_private": { "type": "boolean" },
+        "domain": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "domain_suffix": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "domain_keyword": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "domain_regex": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "geosite": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "geoip": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "source_geoip": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "rule_set": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "rule_set_ip_cidr_match_source": { "type": "boolean" },
+        "rule_set_ipcidr_match_source": { "type": "boolean" },
+        "rule_set_ip_cidr_accept_empty": { "type": "boolean" },
+        "port": { "oneOf": [ { "type": "integer" }, { "type": "array", "items": { "type": "integer" } } ] },
+        "port_range": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "source_port": { "oneOf": [ { "type": "integer" }, { "type": "array", "items": { "type": "integer" } } ] },
+        "source_port_range": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "network": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string", "enum": ["tcp","udp"] } } ] },
+        "protocol": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "auth_user": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "client": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "process_name": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "process_path": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "process_path_regex": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "package_name": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "user": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "user_id": { "oneOf": [ { "type": "integer" }, { "type": "array", "items": { "type": "integer" } } ] },
+        "clash_mode": { "type": "string" },
+        "network_type": { "$ref": "#/definitions/InterfaceTypeList" },
+        "network_is_expensive": { "type": "boolean" },
+        "network_is_constrained": { "type": "boolean" },
+        "wifi_ssid": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "wifi_bssid": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "invert": { "type": "boolean" },
+        "action": { "type": "string", "enum": ["route","route-options","direct","reject","hijack-dns","resolve","sniff"] },
+        "outbound": { "type": "string" },
+        "override_address": { "type": "string" },
+        "override_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "network_strategy": { "$ref": "#/definitions/NetworkStrategy" },
+        "fallback_network_type": { "$ref": "#/definitions/InterfaceTypeList" },
+        "fallback_delay": { "$ref": "#/definitions/Duration" },
+        "udp_disable_domain_unmapping": { "type": "boolean" },
+        "udp_connect": { "type": "boolean" },
+        "udp_timeout": { "$ref": "#/definitions/Duration" },
+        "tls_fragment": { "type": "boolean" },
+        "tls_record_fragment": { "type": "boolean" },
+        "tls_fragment_fallback_delay": { "$ref": "#/definitions/Duration" },
+        "reject_method": { "type": "string", "enum": ["default","drop"] },
+        "dns_strategy": { "$ref": "#/definitions/DomainStrategy" },
+        "dns_disable_cache": { "type": "boolean" },
+        "dns_rewrite_ttl": { "type": "integer", "minimum": 0 },
+        "dns_client_subnet": { "$ref": "#/definitions/Prefixable" }
+      },
+      "additionalProperties": true
+    },
+    "LogicalRule": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "logical" },
+        "mode": { "type": "string", "enum": ["and","or"] },
+        "rules": { "type": "array", "items": { "$ref": "#/definitions/Rule" } },
+        "invert": { "type": "boolean" },
+        "action": { "type": "string", "enum": ["route","route-options","direct","reject","hijack-dns","resolve","sniff"] },
+        "outbound": { "type": "string" },
+        "override_address": { "type": "string" },
+        "override_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "network_strategy": { "$ref": "#/definitions/NetworkStrategy" },
+        "fallback_delay": { "$ref": "#/definitions/Duration" },
+        "udp_disable_domain_unmapping": { "type": "boolean" },
+        "udp_connect": { "type": "boolean" },
+        "udp_timeout": { "$ref": "#/definitions/Duration" },
+        "tls_fragment": { "type": "boolean" },
+        "tls_record_fragment": { "type": "boolean" },
+        "tls_fragment_fallback_delay": { "$ref": "#/definitions/Duration" },
+        "bind_interface": { "type": "string" },
+        "inet4_bind_address": { "$ref": "#/definitions/Addr" },
+        "inet6_bind_address": { "$ref": "#/definitions/Addr" },
+        "routing_mark": { "$ref": "#/definitions/FwMark" },
+        "reuse_addr": { "type": "boolean" },
+        "netns": { "type": "string" },
+        "connect_timeout": { "$ref": "#/definitions/Duration" },
+        "tcp_fast_open": { "type": "boolean" },
+        "tcp_multi_path": { "type": "boolean" },
+        "udp_fragment": { "type": "boolean" },
+        "domain_resolver": { "$ref": "#/definitions/DomainResolveOptions" },
+        "network_type": { "$ref": "#/definitions/InterfaceTypeList" },
+        "fallback_network_type": { "$ref": "#/definitions/InterfaceTypeList" },
+        "domain_strategy": { "$ref": "#/definitions/DomainStrategy" },
+        "reject_method": { "type": "string", "enum": ["default","drop"] },
+        "no_drop": { "type": "boolean" },
+        "sniffer": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "timeout": { "$ref": "#/definitions/Duration" },
+        "server": { "type": "string" },
+        "strategy": { "$ref": "#/definitions/DomainStrategy" },
+        "dns_strategy": { "$ref": "#/definitions/DomainStrategy" },
+        "disable_cache": { "type": "boolean" },
+        "dns_disable_cache": { "type": "boolean" },
+        "rewrite_ttl": { "type": "integer", "minimum": 0 },
+        "dns_rewrite_ttl": { "type": "integer", "minimum": 0 },
+        "client_subnet": { "$ref": "#/definitions/Prefixable" },
+        "dns_client_subnet": { "$ref": "#/definitions/Prefixable" },
+        "dns_server": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "HeadlessRule": {
+      "type": "object",
+      "oneOf": [ { "$ref": "#/definitions/DefaultHeadlessRule" }, { "$ref": "#/definitions/LogicalHeadlessRule" } ]
+    },
+    "DefaultHeadlessRule": {
+      "type": "object",
+      "properties": {
+        "type": { "enum": ["", "default"] },
+        "query_type": { "type": "array", "items": { "type": "string" } },
+        "network": { "type": "array", "items": { "type": "string", "enum": ["tcp","udp"] } },
+        "domain": { "type": "array", "items": { "type": "string" } },
+        "domain_suffix": { "type": "array", "items": { "type": "string" } },
+        "domain_keyword": { "type": "array", "items": { "type": "string" } },
+        "domain_regex": { "type": "array", "items": { "type": "string" } },
+        "source_ip_cidr": { "type": "array", "items": { "$ref": "#/definitions/CIDR" } },
+        "ip_cidr": { "type": "array", "items": { "$ref": "#/definitions/CIDR" } },
+        "source_port": { "type": "array", "items": { "type": "integer" } },
+        "source_port_range": { "type": "array", "items": { "type": "string" } },
+        "port": { "type": "array", "items": { "type": "integer" } },
+        "port_range": { "type": "array", "items": { "type": "string" } },
+        "process_name": { "type": "array", "items": { "type": "string" } },
+        "process_path": { "type": "array", "items": { "type": "string" } },
+        "process_path_regex": { "type": "array", "items": { "type": "string" } },
+        "package_name": { "type": "array", "items": { "type": "string" } },
+        "network_type": { "$ref": "#/definitions/InterfaceTypeList" },
+        "network_is_expensive": { "type": "boolean" },
+        "network_is_constrained": { "type": "boolean" },
+        "wifi_ssid": { "type": "array", "items": { "type": "string" } },
+        "wifi_bssid": { "type": "array", "items": { "type": "string" } },
+        "invert": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "LogicalHeadlessRule": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "logical" },
+        "mode": { "type": "string", "enum": ["and","or"] },
+        "rules": { "type": "array", "items": { "$ref": "#/definitions/HeadlessRule" } },
+        "invert": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "RuleSet": {
+      "type": "object",
+      "oneOf": [
+        { "$ref": "#/definitions/InlineRuleSet" },
+        { "$ref": "#/definitions/LocalRuleSet" },
+        { "$ref": "#/definitions/RemoteRuleSet" }
+      ]
+    },
+    "InlineRuleSet": {
+      "type": "object",
+      "required": ["tag", "rules"],
+      "properties": {
+        "type": { "enum": ["", "inline"] },
+        "tag": { "type": "string" },
+        "rules": { "type": "array", "items": { "$ref": "#/definitions/HeadlessRule" } }
+      },
+      "additionalProperties": false
+    },
+    "LocalRuleSet": {
+      "type": "object",
+      "required": ["type", "tag", "format", "path"],
+      "properties": {
+        "type": { "const": "local" },
+        "tag": { "type": "string" },
+        "format": { "type": "string", "enum": ["source", "binary"] },
+        "path": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "RemoteRuleSet": {
+      "type": "object",
+      "required": ["type", "tag", "format", "url"],
+      "properties": {
+        "type": { "const": "remote" },
+        "tag": { "type": "string" },
+        "format": { "type": "string", "enum": ["source", "binary"] },
+        "url": { "type": "string" },
+        "download_detour": { "type": "string" },
+        "update_interval": { "$ref": "#/definitions/Duration" }
+      },
+      "additionalProperties": false
+    },
+    "Service": {
+      "type": "object",
+      "oneOf": [
+        { "$ref": "#/definitions/DERPService" },
+        { "$ref": "#/definitions/ResolvedService" },
+        { "$ref": "#/definitions/SSMAPIService" }
+      ]
+    },
+    "DERPService": {
+      "allOf": [
+        { "$ref": "#/definitions/ListenOptions" },
+        { "$ref": "#/definitions/InboundTLSOptionsContainer" },
+        {
+          "type": "object",
+          "required": ["type","config_path"],
+          "properties": {
+            "type": { "const": "derp" },
+            "tag": { "type": "string" },
+            "config_path": { "type": "string" },
+            "verify_client_endpoint": { "type": "array", "items": { "type": "string" } },
+            "verify_client_url": { "type": "array", "items": { "$ref": "#/definitions/DERPVerifyClientURL" } },
+            "home": { "type": "string" },
+            "mesh_with": { "type": "array", "items": { "$ref": "#/definitions/DERPMesh" } },
+            "mesh_psk": { "type": "string" },
+            "mesh_psk_file": { "type": "string" },
+            "stun": { "$ref": "#/definitions/DERPSTUN" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "DERPVerifyClientURL": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        {
+          "type": "object",
+          "properties": {
+            "url": { "type": "string" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "DERPMesh": {
+      "allOf": [
+        { "$ref": "#/definitions/DialerOptions" },
+        { "$ref": "#/definitions/OutboundTLSOptionsContainer" },
+        {
+          "type": "object",
+          "required": ["server","server_port"],
+          "properties": {
+            "server": { "type": "string" },
+            "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "host": { "type": "string" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "DERPSTUN": {
+      "oneOf": [
+        { "type": "integer", "minimum": 1, "maximum": 65535 },
+        {
+          "allOf": [
+            { "$ref": "#/definitions/ListenOptions" },
+            {
+              "type": "object",
+              "required": ["enabled"],
+              "properties": {
+                "enabled": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      ]
+    },
+    "ResolvedService": {
+      "allOf": [
+        { "$ref": "#/definitions/ListenOptions" },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "const": "resolved" },
+            "tag": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "SSMAPIService": {
+      "allOf": [
+        { "$ref": "#/definitions/ListenOptions" },
+        { "$ref": "#/definitions/InboundTLSOptionsContainer" },
+        {
+          "type": "object",
+          "required": ["type","servers"],
+          "properties": {
+            "type": { "const": "ssm-api" },
+            "tag": { "type": "string" },
+            "servers": { "type": "object", "additionalProperties": { "type": "string" } },
+            "cache_path": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ExperimentalOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cache_file": { "$ref": "#/definitions/CacheFileOptions" },
+        "clash_api": { "$ref": "#/definitions/ClashAPIOptions" },
+        "v2ray_api": { "$ref": "#/definitions/V2RayAPIOptions" }
+      }
+    },
+    "CacheFileOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "path": { "type": "string" },
+        "cache_id": { "type": "string" },
+        "store_fakeip": { "type": "boolean" },
+        "store_rdrc": { "type": "boolean" },
+        "rdrc_timeout": { "$ref": "#/definitions/Duration" }
+      }
+    },
+    "ClashAPIOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "external_controller": { "type": "string" },
+        "external_ui": { "type": "string" },
+        "external_ui_download_url": { "type": "string" },
+        "external_ui_download_detour": { "type": "string" },
+        "secret": { "type": "string" },
+        "default_mode": { "type": "string" },
+        "access_control_allow_origin": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "access_control_allow_private_network": { "type": "boolean" },
+        "cache_file": { "type": "string" },
+        "cache_id": { "type": "string" },
+        "store_mode": { "type": "boolean" },
+        "store_selected": { "type": "boolean" },
+        "store_fakeip": { "type": "boolean" }
+      }
+    },
+    "V2RayAPIOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "listen": { "type": "string" },
+        "stats": { "$ref": "#/definitions/V2RayStatsServiceOptions" }
+      }
+    },
+    "V2RayStatsServiceOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "inbounds": { "type": "array", "items": { "type": "string" } },
+        "outbounds": { "type": "array", "items": { "type": "string" } },
+        "users": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "AuthUser": {
+      "type": "object",
+      "required": ["username","password"],
+      "properties": {
+        "username": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "SSUser": {
+      "type": "object",
+      "required": ["name","password"],
+      "properties": {
+        "name": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "SSDestination": {
+      "type": "object",
+      "required": ["name","password","server","server_port"],
+      "properties": {
+        "name": { "type": "string" },
+        "password": { "type": "string" },
+        "server": { "type": "string" },
+        "server_port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      },
+      "additionalProperties": false
+    },
+    "DomainStrategy": {
+      "type": "string",
+      "enum": ["","as_is","prefer_ipv4","prefer_ipv6","ipv4_only","ipv6_only"]
+    },
+    "NetworkList": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string", "enum": ["tcp","udp"] } }
+      ]
+    },
+    "UDPOverTCPOptions": {
+      "oneOf": [ { "type": "boolean" }, { "type": "object", "additionalProperties": true } ]
+    },
+    "ListenOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "listen": { "type": "string" },
+        "listen_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "bind_interface": { "type": "string" },
+        "routing_mark": { "type": "integer" },
+        "reuse_addr": { "type": "boolean" },
+        "netns": { "type": "string" },
+        "tcp_keep_alive": { "$ref": "#/definitions/Duration" },
+        "tcp_keep_alive_interval": { "$ref": "#/definitions/Duration" },
+        "tcp_fast_open": { "type": "boolean" },
+        "tcp_multi_path": { "type": "boolean" },
+        "udp_fragment": { "type": ["boolean","null"] },
+        "udp_timeout": { "$ref": "#/definitions/Duration" }
+      }
+    },
+    "DialerOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "detour": { "type": "string" },
+        "bind_interface": { "type": "string" },
+        "inet4_bind_address": { "type": "string" },
+        "inet6_bind_address": { "type": "string" },
+        "protect_path": { "type": "string" },
+        "routing_mark": { "type": "integer" },
+        "reuse_addr": { "type": "boolean" },
+        "netns": { "type": "string" },
+        "connect_timeout": { "$ref": "#/definitions/Duration" },
+        "tcp_fast_open": { "type": "boolean" },
+        "tcp_multi_path": { "type": "boolean" },
+        "udp_fragment": { "type": ["boolean","null"] },
+        "domain_resolver": { "$ref": "#/definitions/DomainResolveOptions" },
+        "network_strategy": { "$ref": "#/definitions/NetworkStrategy" },
+        "network_type": { "$ref": "#/definitions/InterfaceTypeList" },
+        "fallback_network_type": { "$ref": "#/definitions/InterfaceTypeList" },
+        "fallback_delay": { "$ref": "#/definitions/Duration" },
+        "domain_strategy": { "$ref": "#/definitions/DomainStrategy" }
+      }
+    },
+    "InboundTLSOptionsContainer": {
+      "type": "object",
+      "properties": { "tls": { "$ref": "#/definitions/InboundTLSOptions" } },
+      "additionalProperties": false
+    },
+    "InboundTLSOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "server_name": { "type": "string" },
+        "insecure": { "type": "boolean" },
+        "alpn": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "min_version": { "type": "string" },
+        "max_version": { "type": "string" },
+        "cipher_suites": { "type": "array", "items": { "type": "string" } },
+        "certificate": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "certificate_path": { "type": "string" },
+        "key": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "key_path": { "type": "string" },
+        "acme": { "$ref": "#/definitions/InboundACMEOptions" },
+        "ech": { "$ref": "#/definitions/InboundECHOptions" },
+        "reality": { "$ref": "#/definitions/InboundRealityOptions" }
+      }
+    },
+    "InboundACMEOptions": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "InboundECHOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "key": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "key_path": { "type": "string" },
+        "pq_signature_schemes_enabled": { "type": "boolean" },
+        "dynamic_record_sizing_disabled": { "type": "boolean" }
+      }
+    },
+    "InboundRealityOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "handshake": { "$ref": "#/definitions/RealityHandshakeOptions" },
+        "private_key": { "type": "string" },
+        "short_id": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "max_time_difference": { "$ref": "#/definitions/Duration" }
+      }
+    },
+    "RealityHandshakeOptions": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "OutboundTLSOptionsContainer": {
+      "type": "object",
+      "properties": { "tls": { "$ref": "#/definitions/OutboundTLSOptions" } },
+      "additionalProperties": false
+    },
+    "OutboundTLSOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "disable_sni": { "type": "boolean" },
+        "server_name": { "type": "string" },
+        "insecure": { "type": "boolean" },
+        "alpn": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "min_version": { "type": "string" },
+        "max_version": { "type": "string" },
+        "cipher_suites": { "type": "array", "items": { "type": "string" } },
+        "certificate": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "certificate_path": { "type": "string" },
+        "fragment": { "type": "boolean" },
+        "fragment_fallback_delay": { "$ref": "#/definitions/Duration" },
+        "record_fragment": { "type": "boolean" },
+        "ech": { "$ref": "#/definitions/OutboundECHOptions" },
+        "utls": { "$ref": "#/definitions/OutboundUTLSOptions" },
+        "reality": { "$ref": "#/definitions/OutboundRealityOptions" }
+      }
+    },
+    "OutboundECHOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "config": { "oneOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+        "config_path": { "type": "string" },
+        "pq_signature_schemes_enabled": { "type": "boolean" },
+        "dynamic_record_sizing_disabled": { "type": "boolean" }
+      }
+    },
+    "OutboundUTLSOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "fingerprint": { "type": "string" }
+      }
+    },
+    "OutboundRealityOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "public_key": { "type": "string" },
+        "short_id": { "type": "string" }
+      }
+    },
+    "InboundMultiplexOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "padding": { "type": "boolean" },
+        "brutal": { "$ref": "#/definitions/BrutalOptions" }
+      }
+    },
+    "OutboundMultiplexOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "protocol": { "type": "string" },
+        "max_connections": { "type": "integer", "minimum": 0 },
+        "min_streams": { "type": "integer", "minimum": 0 },
+        "max_streams": { "type": "integer", "minimum": 0 },
+        "padding": { "type": "boolean" },
+        "brutal": { "$ref": "#/definitions/BrutalOptions" }
+      }
+    },
+    "BrutalOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "up_mbps": { "type": "integer", "minimum": 0 },
+        "down_mbps": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "DNSRule": {
+      "type": "object",
+      "oneOf": [
+        { "$ref": "#/definitions/DefaultDNSRule" },
+        { "$ref": "#/definitions/LogicalDNSRule" }
+      ]
+    },
+    "DefaultDNSRule": {
+      "type": "object",
+      "properties": {
+        "type": { "enum": ["", "default"] },
+        "inbound": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "ip_version": { "type": "integer", "enum": [4, 6] },
+        "query_type": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "integer" },
+            { "type": "array", "items": { "oneOf": [ { "type": "string" }, { "type": "integer" } ] } }
+          ]
+        },
+        "network": {
+          "oneOf": [
+            { "type": "string", "enum": ["tcp","udp"] },
+            { "type": "array", "items": { "type": "string", "enum": ["tcp","udp"] } }
+          ]
+        },
+        "auth_user": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "protocol": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "domain": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "domain_suffix": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "domain_keyword": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "domain_regex": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "source_ip_cidr": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "$ref": "#/definitions/CIDR" } }
+          ]
+        },
+        "source_ip_is_private": { "type": "boolean" },
+        "source_port": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "array", "items": { "type": "integer" } }
+          ]
+        },
+        "source_port_range": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "port": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "array", "items": { "type": "integer" } }
+          ]
+        },
+        "port_range": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "process_name": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "process_path": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "process_path_regex": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "package_name": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "user": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "user_id": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "array", "items": { "type": "integer" } }
+          ]
+        },
+        "clash_mode": { "type": "string" },
+        "network_type": { "$ref": "#/definitions/InterfaceTypeList" },
+        "network_is_expensive": { "type": "boolean" },
+        "network_is_constrained": { "type": "boolean" },
+        "wifi_ssid": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "wifi_bssid": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "rule_set": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "rule_set_ip_cidr_match_source": { "type": "boolean" },
+        "rule_set_ip_cidr_accept_empty": { "type": "boolean" },
+        "invert": { "type": "boolean" },
+        "ip_cidr": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "$ref": "#/definitions/CIDR" } }
+          ]
+        },
+        "ip_is_private": { "type": "boolean" },
+        "ip_accept_any": { "type": "boolean" },
+        "action": { "type": "string", "enum": ["route","route-options","reject","predefined"] },
+        "server": { "type": "string" },
+        "strategy": { "$ref": "#/definitions/DomainStrategy" },
+        "disable_cache": { "type": "boolean" },
+        "rewrite_ttl": { "type": "integer", "minimum": 0 },
+        "client_subnet": { "$ref": "#/definitions/Prefixable" },
+        "method": { "type": "string", "enum": ["default","drop"] },
+        "no_drop": { "type": "boolean" },
+        "rcode": {
+          "oneOf": [
+            { "type": "string", "enum": ["NOERROR","FORMERR","SERVFAIL","NXDOMAIN","NOTIMP","REFUSED"] },
+            { "type": "integer" }
+          ]
+        },
+        "answer": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "ns": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "extra": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "outbound": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "rule_set_ipcidr_match_source": { "type": "boolean" },
+        "geosite": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "source_geoip": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "geoip": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "LogicalDNSRule": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "logical" },
+        "mode": { "type": "string", "enum": ["and","or"] },
+        "rules": { "type": "array", "items": { "$ref": "#/definitions/DNSRule" } },
+        "invert": { "type": "boolean" },
+        "action": { "type": "string", "enum": ["route","route-options","reject","predefined"] },
+        "server": { "type": "string" },
+        "strategy": { "$ref": "#/definitions/DomainStrategy" },
+        "disable_cache": { "type": "boolean" },
+        "rewrite_ttl": { "type": "integer", "minimum": 0 },
+        "client_subnet": { "$ref": "#/definitions/Prefixable" },
+        "method": { "type": "string", "enum": ["default","drop"] },
+        "no_drop": { "type": "boolean" },
+        "rcode": {
+          "oneOf": [
+            { "type": "string", "enum": ["NOERROR","FORMERR","SERVFAIL","NXDOMAIN","NOTIMP","REFUSED"] },
+            { "type": "integer" }
+          ]
+        },
+        "answer": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "ns": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "extra": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "DomainResolveOptions": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "GeoIPOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string" },
+        "download_url": { "type": "string" },
+        "download_detour": { "type": "string" }
+      }
+    },
+    "GeositeOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string" },
+        "download_url": { "type": "string" },
+        "download_detour": { "type": "string" }
+      }
+    },
+    "NetworkStrategy": { "type": "string", "enum": ["default","fallback","hybrid"] },
+    "InterfaceTypeList": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string", "enum": ["ethernet","wifi","cellular","other"] } }
+      ]
+    },
+    "Duration": { "type": "string" },
+    "CIDR": { "type": "string" },
+    "IPAddr": { "type": "string" },
+    "Prefixable": { "type": "string" },
+    "FwMark": {
+      "oneOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "string" }
+      ]
+    },
+    "Addr": { "type": "string" }
+  }
+}
+
+

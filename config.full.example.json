@@ -1,0 +1,991 @@
+{
+  "$schema": "https://raw.githubusercontent.com/SagerNet/sing-box/v1.12.12/docs/schema.json",
+  "log": {
+    "level": "info",
+    "output": "stderr",
+    "timestamp": true,
+    "disabled": false
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "local",
+        "tag": "local",
+        "detour": "direct",
+        "bind_interface": "eth0"
+      },
+      {
+        "type": "tcp",
+        "tag": "dns-tcp",
+        "server": "1.1.1.1",
+        "server_port": 53,
+        "detour": "direct",
+        "bind_interface": "eth0",
+        "connect_timeout": "5s",
+        "domain_resolver": "local"
+      },
+      {
+        "type": "udp",
+        "tag": "dns-udp",
+        "server": "8.8.8.8",
+        "server_port": 53,
+        "detour": "direct",
+        "network_strategy": "hybrid",
+        "network_type": "wifi"
+      },
+      {
+        "type": "tls",
+        "tag": "dns-tls",
+        "server": "1.1.1.1",
+        "server_port": 853,
+        "detour": "direct",
+        "connect_timeout": "10s",
+        "domain_resolver": {
+          "server": "local",
+          "strategy": "prefer_ipv4"
+        },
+        "tls": {
+          "enabled": true,
+          "server_name": "cloudflare-dns.com",
+          "insecure": false
+        }
+      },
+      {
+        "type": "quic",
+        "tag": "dns-quic",
+        "server": "dns.adguard.com",
+        "server_port": 853,
+        "tls": {
+          "enabled": true,
+          "server_name": "dns.adguard.com"
+        },
+        "domain_resolver": "local",
+        "connect_timeout": "5s",
+        "udp_fragment": true
+      },
+      {
+        "type": "https",
+        "tag": "dns-https",
+        "server": "dns.google",
+        "server_port": 443,
+        "path": "/dns-query",
+        "method": "POST",
+        "headers": {
+          "User-Agent": "sing-box/1.12.12"
+        },
+        "tls": {
+          "enabled": true,
+          "server_name": "dns.google"
+        },
+        "domain_resolver": "local",
+        "network_strategy": "fallback"
+      },
+      {
+        "type": "h3",
+        "tag": "dns-h3",
+        "server": "dns.cloudflare.com",
+        "server_port": 443,
+        "path": "/dns-query",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/dns-message"
+        },
+        "tls": {
+          "enabled": true,
+          "server_name": "dns.cloudflare.com"
+        },
+        "domain_resolver": "local",
+        "fallback_network_type": "cellular",
+        "fallback_delay": "1s"
+      },
+      {
+        "type": "hosts",
+        "tag": "hosts-dns",
+        "path": ["/etc/hosts"],
+        "predefined": {
+          "example.com": ["1.2.3.4"],
+          "test.local": ["127.0.0.1", "::1"]
+        }
+      },
+      {
+        "type": "dhcp",
+        "tag": "dhcp-dns",
+        "interface": "eth0",
+        "detour": "direct"
+      },
+      {
+        "type": "fakeip",
+        "tag": "fakeip-dns",
+        "inet4_range": "198.18.0.0/15",
+        "inet6_range": "fc00::/18"
+      },
+      {
+        "type": "tailscale",
+        "tag": "ts-dns",
+        "endpoint": "ts-endpoint",
+        "accept_default_resolvers": true
+      }
+    ],
+    "rules": [
+      {
+        "type": "default",
+        "domain_suffix": ["local"],
+        "server": "local"
+      },
+      {
+        "type": "default",
+        "rule_set": ["local-rules"],
+        "server": "dns-tcp",
+        "strategy": "prefer_ipv4",
+        "disable_cache": false
+      },
+      {
+        "type": "default",
+        "rule_set": ["local-rules"],
+        "server": "dns-tls"
+      },
+      {
+        "type": "logical",
+        "mode": "and",
+        "rules": [
+          {
+            "type": "default",
+            "domain_keyword": ["ads"]
+          }
+        ],
+        "action": "predefined"
+      }
+    ],
+    "final": "dns-h3",
+    "strategy": "prefer_ipv4",
+    "reverse_mapping": true,
+    "disable_cache": false,
+    "disable_expire": false,
+    "independent_cache": false,
+    "cache_capacity": 4096,
+    "client_subnet": "0.0.0.0/0"
+  },
+  "ntp": {
+    "enabled": true,
+    "server": "time.google.com",
+    "server_port": 123,
+    "interval": "1h",
+    "write_to_system": false,
+    "detour": "direct",
+    "bind_interface": "eth0",
+    "connect_timeout": "5s",
+    "domain_resolver": {
+      "server": "local",
+      "strategy": "prefer_ipv4"
+    }
+  },
+  "certificate": {
+    "paths": ["./certificates"]
+  },
+  "endpoints": [
+    {
+      "type": "tailscale",
+      "tag": "ts-endpoint",
+      "state_directory": "./ts-state",
+      "auth_key": "tskey-xxxxxxxxxxxxxxxxxxxx",
+      "control_url": "https://controlplane.tailscale.com",
+      "ephemeral": true,
+      "hostname": "singbox-node",
+      "accept_routes": true,
+      "exit_node": "",
+      "exit_node_allow_lan_access": false,
+      "advertise_routes": ["10.0.0.0/24"],
+      "advertise_exit_node": false,
+      "udp_timeout": "5m",
+      "detour": "direct",
+      "bind_interface": "eth0",
+      "connect_timeout": "10s",
+      "domain_resolver": "local"
+    }
+  ],
+  "inbounds": [
+    {
+      "type": "socks",
+      "tag": "socks-in",
+      "listen": "127.0.0.1",
+      "listen_port": 1080,
+      "users": [
+        {
+          "username": "user1",
+          "password": "pass1"
+        }
+      ]
+    },
+    {
+      "type": "http",
+      "tag": "http-in",
+      "listen": "127.0.0.1",
+      "listen_port": 7890,
+      "users": []
+    },
+    {
+      "type": "mixed",
+      "tag": "mixed-in",
+      "listen": "127.0.0.1",
+      "listen_port": 8080,
+      "users": [],
+      "tls": {
+      },
+      "set_system_proxy": false,
+      "domain_resolver": {}
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "ss-in",
+      "listen": "0.0.0.0",
+      "listen_port": 8388,
+      "method": "2022-blake3-aes-128-gcm",
+      "password": "8JCsPssfgS8tiRwiMlhARg==",
+      "network": ["tcp", "udp"],
+      "users": [
+        {
+          "name": "user1",
+          "password": "PCD2Z4o12bKUoFa3cC97Hw=="
+        }
+      ],
+      "multiplex": {
+        "enabled": true,
+        "padding": true
+      }
+    },
+    {
+      "type": "direct",
+      "tag": "direct-in",
+      "listen": "127.0.0.1",
+      "listen_port": 1081,
+      "network": "tcp"
+    },
+    {
+      "type": "trojan",
+      "tag": "trojan-in",
+      "listen": "0.0.0.0",
+      "listen_port": 443,
+      "users": [
+        {
+          "name": "user1",
+          "password": "8JCsPssfgS8tiRwiMlhARg=="
+        }
+      ],
+      "tls": {
+        "enabled": true,
+        "certificate_path": "./cert.pem",
+        "key_path": "./key.pem"
+      },
+      "multiplex": {
+        "enabled": true,
+        "brutal": {
+          "enabled": false,
+          "up_mbps": 100,
+          "down_mbps": 100
+        }
+      },
+      "transport": {}
+    },
+    {
+      "type": "vmess",
+      "tag": "vmess-in",
+      "listen": "0.0.0.0",
+      "listen_port": 444,
+      "users": [
+        {
+          "name": "user1",
+          "uuid": "00000000-0000-0000-0000-000000000000"
+        }
+      ],
+      "tls": {
+        "enabled": true,
+        "certificate_path": "./cert.pem",
+        "key_path": "./key.pem"
+      },
+      "multiplex": {
+        "enabled": true
+      },
+      "transport": {}
+    },
+    {
+      "type": "vless",
+      "tag": "vless-in",
+      "listen": "0.0.0.0",
+      "listen_port": 445,
+      "users": [
+        {
+          "name": "user1",
+          "uuid": "00000000-0000-0000-0000-000000000000",
+          "flow": "xtls-rprx-vision"
+        }
+      ],
+      "tls": {
+        "enabled": true,
+        "certificate_path": "./cert.pem",
+        "key_path": "./key.pem"
+      },
+      "multiplex": {
+        "enabled": true
+      },
+      "transport": {}
+    },
+    {
+      "type": "naive",
+      "tag": "naive-in",
+      "listen": "0.0.0.0",
+      "listen_port": 8443,
+      "users": [
+        {
+          "username": "user1",
+          "password": "pass1"
+        }
+      ],
+      "network": "tcp",
+      "tls": {
+        "enabled": true,
+        "certificate_path": "./cert.pem",
+        "key_path": "./key.pem"
+      }
+    },
+    {
+      "type": "tuic",
+      "tag": "tuic-in",
+      "listen": "0.0.0.0",
+      "listen_port": 443,
+      "users": [
+        {
+          "name": "user1",
+          "uuid": "00000000-0000-0000-0000-000000000000",
+          "password": "password123"
+        }
+      ],
+      "congestion_control": "cubic",
+      "auth_timeout": "10s",
+      "zero_rtt_handshake": false,
+      "heartbeat": "10s",
+      "tls": {
+        "enabled": true,
+        "certificate_path": "./cert.pem",
+        "key_path": "./key.pem"
+      }
+    },
+    {
+      "type": "hysteria",
+      "tag": "hysteria-in",
+      "listen": "0.0.0.0",
+      "listen_port": 443,
+      "up": "100 Mbps",
+      "up_mbps": 100,
+      "down": "100 Mbps",
+      "down_mbps": 100,
+      "obfs": "fuck me till the daylight",
+      "users": [
+        {
+          "name": "user1",
+          "auth_str": "auth_string"
+        }
+      ],
+      "recv_window_conn": 15728640,
+      "recv_window_client": 67108864,
+      "max_conn_client": 4096,
+      "disable_mtu_discovery": false,
+      "tls": {
+        "enabled": true,
+        "certificate_path": "./cert.pem",
+        "key_path": "./key.pem"
+      }
+    },
+    {
+      "type": "hysteria2",
+      "tag": "hysteria2-in",
+      "listen": "0.0.0.0",
+      "listen_port": 443,
+      "up_mbps": 100,
+      "down_mbps": 100,
+      "obfs": {
+        "type": "salamander",
+        "password": "password123"
+      },
+      "users": [
+        {
+          "name": "user1",
+          "password": "password123"
+        }
+      ],
+      "ignore_client_bandwidth": false,
+      "tls": {
+        "enabled": true,
+        "certificate_path": "./cert.pem",
+        "key_path": "./key.pem"
+      },
+      "masquerade": {
+        "type": "file",
+        "directory": "./masquerade"
+      }
+    },
+    {
+      "type": "shadowtls",
+      "tag": "shadowtls-in",
+      "listen": "0.0.0.0",
+      "listen_port": 443,
+      "version": 3,
+      "password": "password123",
+      "users": [
+        {
+          "name": "user1",
+          "password": "pass1"
+        }
+      ],
+      "handshake": {
+        "server": "example.com",
+        "server_port": 443
+      },
+      "strict_mode": false,
+      "wildcard_sni": "off"
+    },
+    {
+      "type": "anytls",
+      "tag": "anytls-in",
+      "listen": "0.0.0.0",
+      "listen_port": 443,
+      "users": [
+        {
+          "name": "user1",
+          "password": "pass1"
+        }
+      ],
+      "tls": {
+        "enabled": true,
+        "certificate_path": "./cert.pem",
+        "key_path": "./key.pem"
+      },
+      "padding_scheme": ["stop=8",
+  "0=30-30",
+  "1=100-400",
+  "2=400-500,c,500-1000,c,500-1000,c,500-1000,c,500-1000",
+  "3=9-9,500-1000",
+  "4=500-1000",
+  "5=500-1000",
+  "6=500-1000",
+  "7=500-1000"]
+    },
+    {
+      "type": "redirect",
+      "tag": "redirect-in",
+      "listen": "0.0.0.0",
+      "listen_port": 8443
+    },
+    {
+      "type": "tproxy",
+      "tag": "tproxy-in",
+      "listen": "0.0.0.0",
+      "listen_port": 60080,
+      "network": ["tcp", "udp"]
+    },
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "interface_name": "tun0",
+      "mtu": 9000,
+      "address": ["172.19.0.1/30"],
+      "auto_route": true,
+      "auto_redirect": false,
+      "strict_route": false,
+      "include_interface": ["eth0"],
+      "exclude_interface": ["lo"],
+      "include_uid": [0],
+      "exclude_uid": [999],
+      "include_package": ["com.example.app"],
+      "exclude_package": ["com.android.chrome"],
+      "udp_timeout": "5m",
+      "stack": "system"
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "direct",
+      "detour": "",
+      "bind_interface": "eth0",
+      "connect_timeout": "5s",
+      "domain_resolver": {
+        "server": "local",
+        "strategy": "prefer_ipv4"
+      }
+    },
+    {
+      "type": "socks",
+      "tag": "socks-out",
+      "server": "127.0.0.1",
+      "server_port": 10808,
+      "username": "user",
+      "password": "pass",
+      "version": "5",
+      "network": ["tcp", "udp"],
+      "udp_over_tcp": {
+        "enabled": true
+      },
+      "detour": "direct",
+      "bind_interface": "eth0",
+      "connect_timeout": "10s",
+      "domain_resolver": "local",
+      "network_strategy": "hybrid"
+    },
+    {
+      "type": "http",
+      "tag": "http-out",
+      "server": "127.0.0.1",
+      "server_port": 8080,
+      "username": "user",
+      "password": "pass",
+      "path": "/proxy",
+      "headers": {
+        "User-Agent": "sing-box/1.0"
+      },
+      "detour": "direct",
+      "connect_timeout": "10s",
+      "tls": {
+        "enabled": true,
+        "server_name": "example.com"
+      }
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "shadowsocks-out",
+      "server": "example.com",
+      "server_port": 8388,
+      "method": "2022-blake3-aes-128-gcm",
+      "password": "8JCsPssfgS8tiRwiMlhARg==",
+      "plugin": "",
+      "plugin_opts": "",
+      "network": ["tcp", "udp"],
+      "udp_over_tcp": {
+        "enabled": false
+      },
+      "multiplex": {
+        "enabled": true,
+        "protocol": "smux",
+        "max_connections": 4,
+        "min_streams": 16,
+        "max_streams": 32,
+        "padding": true,
+        "brutal": {
+          "enabled": true,
+          "up_mbps": 100,
+          "down_mbps": 100
+        }
+      },
+      "detour": "direct",
+      "bind_interface": "eth0",
+      "inet4_bind_address": "0.0.0.0",
+      "routing_mark": 100,
+      "connect_timeout": "10s",
+      "tcp_fast_open": true,
+      "domain_resolver": {
+        "server": "local",
+        "strategy": "prefer_ipv4"
+      },
+      "network_strategy": "fallback",
+      "network_type": "wifi",
+      "fallback_network_type": "cellular",
+      "fallback_delay": "500ms"
+    },
+    {
+      "type": "ssh",
+      "tag": "ssh-out",
+      "server": "ssh.example.com",
+      "server_port": 22,
+      "user": "root",
+      "password": "password123",  
+      "private_key": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW\nQyNTUxOQAAACA8jOL+22/9FXwt5kydOL2w+eAQD+KP+IXokPymJozSCgAAAJjTrn3B0659\nwQAAAAtzc2gtZWQyNTUxOQAAACA8jOL+22/9FXwt5kydOL2w+eAQD+KP+IXokPymJozSCg\nAAAECxUVa68MH+6Lb17HNskTtH2Xm9iemQuq5eLQJO/MC29TyM4v7bb/0VfC3mTJ04vbD5\n4BAP4o/4heiQ/KYmjNIKAAAAFW1pY2tleUBzcy5leGFtcGxlLmNvbQ==\n-----END OPENSSH PRIVATE KEY-----",
+      "detour": "direct",
+      "connect_timeout": "10s",
+      "domain_resolver": "local"
+    },
+    {
+      "type": "tuic",
+      "tag": "tuic-out",
+      "server": "example.com",
+      "server_port": 443,
+      "uuid": "00000000-0000-0000-0000-000000000000",
+      "password": "password123",
+      "congestion_control": "cubic",
+      "udp_relay_mode": "native",
+      "udp_over_stream": false,
+      "zero_rtt_handshake": false,
+      "heartbeat": "10s",
+      "network": ["tcp", "udp"],
+      "tls": {
+        "enabled": true,
+        "server_name": "example.com",
+        "insecure": false,
+        "alpn": ["h3"]
+      },
+      "detour": "direct",
+      "bind_interface": "eth0",
+      "connect_timeout": "10s",
+      "domain_resolver": "local"
+    },
+    {
+      "type": "vmess",
+      "tag": "vmess-out",
+      "server": "example.com",
+      "server_port": 443,
+      "uuid": "00000000-0000-0000-0000-000000000000",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": false,
+      "authenticated_length": true,
+      "network": ["tcp", "udp"],
+      "tls": {
+        "enabled": true,
+        "server_name": "example.com",
+        "insecure": false,
+        "alpn": ["http/1.1"],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        }
+      },
+      "packet_encoding": "packetaddr",
+      "multiplex": {
+        "enabled": true,
+        "protocol": "smux",
+        "max_connections": 4
+      },
+      "transport": {},
+      "detour": "direct",
+      "connect_timeout": "10s",
+      "tcp_fast_open": true,
+      "domain_resolver": {
+        "server": "local",
+        "strategy": "prefer_ipv4"
+      }
+    },
+    {
+      "type": "vless",
+      "tag": "vless-out",
+      "server": "example.com",
+      "server_port": 443,
+      "uuid": "00000000-0000-0000-0000-000000000000",
+      "flow": "xtls-rprx-vision",
+      "network": ["tcp", "udp"],
+      "tls": {
+        "enabled": true,
+        "server_name": "example.com",
+        "reality": {
+          "enabled": true,
+          "public_key": "rZy4v6Wjubxd5WalLKqyOxkHnNlXYDzYjwOeo-z4Igs",
+          "short_id": "a1b2c3"
+        },
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        }
+      },
+      "multiplex": {
+        "enabled": true
+      },
+      "transport": {},
+      "packet_encoding": "packetaddr",
+      "detour": "direct",
+      "connect_timeout": "10s",
+      "domain_resolver": "local"
+    },
+    {
+      "type": "trojan",
+      "tag": "trojan-out",
+      "server": "example.com",
+      "server_port": 443,
+      "password": "password123",
+      "network": ["tcp", "udp"],
+      "tls": {
+        "enabled": true,
+        "server_name": "example.com",
+        "insecure": false,
+        "ech": {
+          "enabled": false,
+          "config": [""]
+        }
+      },
+      "multiplex": {
+        "enabled": true
+      },
+      "transport": {},
+      "detour": "direct",
+      "bind_interface": "eth0",
+      "connect_timeout": "10s",
+      "tcp_fast_open": true,
+      "domain_resolver": "local",
+      "network_strategy": "hybrid"
+    },
+    {
+      "type": "hysteria",
+      "tag": "hysteria-out",
+      "server": "example.com",
+      "server_port": 443,
+      "server_ports": ["10000:65535"],
+      "hop_interval": "5s",
+      "up": "100 Mbps",
+      "up_mbps": 100,
+      "down": "100 Mbps",
+      "down_mbps": 100,
+      "obfs": "fuck me till the daylight",
+      "auth_str": "auth_string",
+      "recv_window_conn": 15728640,
+      "recv_window": 67108864,
+      "disable_mtu_discovery": false,
+      "network": ["tcp", "udp"],
+      "tls": {
+        "enabled": true,
+        "server_name": "example.com",
+        "insecure": false,
+        "alpn": ["h3"]
+      },
+      "detour": "direct",
+      "connect_timeout": "10s",
+      "domain_resolver": "local"
+    },
+    {
+      "type": "hysteria2",
+      "tag": "hysteria2-out",
+      "server": "example.com",
+      "server_port": 443,
+      "server_ports": ["10000:65535"],
+      "hop_interval": "5s",
+      "up_mbps": 100,
+      "down_mbps": 100,
+      "obfs": {
+        "type": "salamander",
+        "password": "password123"
+      },
+      "password": "password123",
+      "network": ["tcp", "udp"],
+      "tls": {
+        "enabled": true,
+        "server_name": "example.com",
+        "insecure": false,
+        "alpn": ["h3"]
+      },
+      "brutal_debug": false,
+      "detour": "direct",
+      "connect_timeout": "10s",
+      "domain_resolver": "local"
+    },
+    {
+      "type": "anytls",
+      "tag": "anytls-out",
+      "server": "example.com",
+      "server_port": 443,
+      "password": "password123",
+      "tls": {
+        "enabled": true,
+        "server_name": "example.com"
+      },
+      "idle_session_check_interval": "30s",
+      "idle_session_timeout": "5m",
+      "min_idle_session": 10,
+      "detour": "direct",
+      "connect_timeout": "10s",
+      "domain_resolver": "local"
+    },
+    {
+      "type": "shadowtls",
+      "tag": "shadowtls-out",
+      "server": "example.com",
+      "server_port": 443,
+      "version": 3,
+      "password": "password123",
+      "tls": {
+        "enabled": true,
+        "server_name": "example.com"
+      },
+      "detour": "direct",
+      "connect_timeout": "10s",
+      "domain_resolver": "local"
+    },
+    {
+      "type": "tor",
+      "tag": "tor-out",
+      "executable_path": "/usr/bin/tor",
+      "extra_args": ["--quiet"],
+      "data_directory": "./tor-data",
+      "torrc": {
+        "SocksPort": "9050",
+        "ControlPort": "9051"
+      },
+      "detour": "direct",
+      "connect_timeout": "10s"
+    },
+    {
+      "type": "selector",
+      "tag": "selector-out",
+      "outbounds": ["shadowsocks-out", "vmess-out", "trojan-out"],
+      "default": "shadowsocks-out",
+      "interrupt_exist_connections": false
+    },
+    {
+      "type": "urltest",
+      "tag": "urltest-out",
+      "outbounds": ["shadowsocks-out", "vmess-out", "trojan-out"],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "5m",
+      "tolerance": 50,
+      "idle_timeout": "10m",
+      "interrupt_exist_connections": false
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "type": "default",
+        "protocol": ["dns"],
+        "action": "hijack-dns"
+      },
+      {
+        "type": "default",
+        "rule_set": ["ads"],
+        "action": "reject",
+        "reject_method": "default"
+      },
+      {
+        "type": "default",
+        "rule_set": ["local-rules"],
+        "action": "route",
+        "outbound": "direct",
+        "network_strategy": "default",
+        "network_type": "wifi"
+      },
+      {
+        "type": "default",
+        "rule_set": ["local-rules"],
+        "action": "route",
+        "outbound": "direct"
+      },
+      {
+        "type": "default",
+        "domain_suffix": ["example.com"],
+        "action": "route",
+        "outbound": "shadowsocks-out"
+      },
+      {
+        "type": "default",
+        "ip_cidr": ["224.0.0.0/3"],
+        "invert": true,
+        "action": "route",
+        "outbound": "selector-out"
+      },
+      {
+        "type": "default",
+        "process_name": ["chrome"],
+        "action": "route",
+        "outbound": "direct"
+      },
+      {
+        "type": "default",
+        "wifi_ssid": ["MyWiFi"],
+        "action": "route",
+        "outbound": "direct"
+      },
+      {
+        "type": "logical",
+        "mode": "and",
+        "rules": [
+          {
+            "type": "default",
+            "rule_set": ["local-rules"]
+          },
+          {
+            "type": "default",
+            "network": ["tcp"]
+          }
+        ],
+        "action": "route",
+        "outbound": "direct"
+      }
+    ],
+    "rule_set": [
+      {
+        "type": "remote",
+        "tag": "ads",
+        "url": "https://example.com/rules/ads.json",
+        "format": "source"
+      },
+      {
+        "type": "local",
+        "tag": "local-rules",
+        "path": "./rules.json",
+        "format": "source"
+      },
+      {
+        "type": "inline",
+        "tag": "inline-rules",
+        "format": "source",
+        "rules": [
+          {
+            "type": "default",
+            "domain_suffix": ["test.com"]
+          }
+        ]
+      }
+    ],
+    "final": "selector-out",
+    "find_process": true,
+    "auto_detect_interface": true,
+    "override_android_vpn": false,
+    "default_mark": 0,
+    "default_domain_resolver": {
+      "server": "local"
+    },
+    "default_network_strategy": "default",
+    "default_network_type": "wifi",
+    "default_fallback_network_type": "cellular",
+    "default_fallback_delay": "500ms"
+  },
+  "services": [
+    {
+      "type": "derp",
+      "tag": "derp-svc",
+      "listen": "0.0.0.0",
+      "listen_port": 33445,
+      "tls": {
+        "enabled": true,
+        "certificate_path": "./cert.pem",
+        "key_path": "./key.pem"
+      },
+      "config_path": "./derp.yaml",
+      "verify_client_endpoint": ["example.com"],
+      "verify_client_url": [
+        {
+          "url": "https://example.com/verify"
+        }
+      ],
+      "home": "home-server",
+      "mesh_with": [
+        {
+          "server": "mesh.example.com",
+          "server_port": 33445,
+          "host": "mesh",
+          "tls": {
+            "enabled": true,
+            "server_name": "mesh.example.com"
+          }
+        }
+      ],
+      "mesh_psk": "0000000000000000000000000000000000000000000000000000000000000000",
+      "mesh_psk_file": "./mesh_psk",
+      "stun": {
+        "enabled": true,
+        "listen": "0.0.0.0",
+        "listen_port": 3478
+      }
+    }
+  ],
+  "experimental": {
+    "clash_api": {
+      "external_controller": "127.0.0.1:9090",
+      "external_ui": "./ui",
+      "secret": "secret_key_here"
+    }
+  }
+}
