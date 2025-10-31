@@ -103,7 +103,7 @@ async function updateEndpoint(idx: number, field: string, value: unknown) {
               <label>
                 <input
                   type="checkbox"
-                  :checked="endpoint.ephemeral || false"
+                  :checked="!!endpoint.ephemeral"
                   @change="updateEndpoint(idx, 'ephemeral', ($event.target as HTMLInputElement).checked)"
                 />
                 {{ currentLocale === 'zh' ? '临时节点' : 'Ephemeral' }}
@@ -122,7 +122,7 @@ async function updateEndpoint(idx: number, field: string, value: unknown) {
               <label>
                 <input
                   type="checkbox"
-                  :checked="endpoint.accept_routes || false"
+                  :checked="!!endpoint.accept_routes"
                   @change="updateEndpoint(idx, 'accept_routes', ($event.target as HTMLInputElement).checked)"
                 />
                 {{ currentLocale === 'zh' ? '接受路由' : 'Accept Routes' }}

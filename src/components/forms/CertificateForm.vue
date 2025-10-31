@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { currentConfig, setConfig } from '../../stores/config';
 import { useI18n } from '../../i18n';
 
-const { t, currentLocale } = useI18n();
+const { currentLocale } = useI18n();
 
 const certificate = computed(() => currentConfig.value.certificate as Record<string, unknown> | undefined || {});
 const paths = computed(() => {

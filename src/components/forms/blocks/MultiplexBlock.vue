@@ -9,7 +9,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (e: 'update:modelValue', v: Record<string, unknown> | undefined): void }>();
 
-const { t, currentLocale } = useI18n();
+const { currentLocale } = useI18n();
 const multiplex = computed({
   get: () => props.modelValue || {},
   set: (v) => emit('update:modelValue', Object.keys(v).length > 0 ? v : undefined),
@@ -54,7 +54,7 @@ function updateField(field: string, value: unknown) {
       </div>
       <div class="field-group">
         <label>
-          <input type="checkbox" :checked="multiplex.padding" @change="updateField('padding', ($event.target as HTMLInputElement).checked)" />
+          <input type="checkbox" :checked="!!multiplex.padding" @change="updateField('padding', ($event.target as HTMLInputElement).checked)" />
           {{ currentLocale === 'zh' ? '填充' : 'Padding' }}
         </label>
       </div>

@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { currentConfig, setConfig } from '../../stores/config';
 import { useI18n } from '../../i18n';
 
-const { t, currentLocale } = useI18n();
+const { currentLocale } = useI18n();
 
 const ntp = computed(() => currentConfig.value.ntp as Record<string, unknown> | undefined || {});
 
@@ -23,7 +23,7 @@ async function updateNtpField(field: string, value: unknown) {
       <label>
         <input
           type="checkbox"
-          :checked="ntp.enabled || false"
+          :checked="!!ntp.enabled"
           @change="updateNtpField('enabled', ($event.target as HTMLInputElement).checked)"
         />
         {{ currentLocale === 'zh' ? '启用 NTP 时间同步' : 'Enable NTP Time Synchronization' }}
@@ -67,7 +67,7 @@ async function updateNtpField(field: string, value: unknown) {
         <label>
           <input
             type="checkbox"
-            :checked="ntp.write_to_system || false"
+            :checked="!!ntp.write_to_system"
             @change="updateNtpField('write_to_system', ($event.target as HTMLInputElement).checked)"
           />
           {{ currentLocale === 'zh' ? '写入系统时间' : 'Write to System Time' }}

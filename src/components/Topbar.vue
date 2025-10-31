@@ -189,9 +189,27 @@ defineExpose({
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 4px;
   background: var(--bg-panel, #fff);
+  color: var(--text-primary, #1f2328);
   font-size: 12px;
   cursor: pointer;
   margin-right: 12px;
+}
+.language-select:hover {
+  background: var(--bg-app, #f5f5f5);
+}
+.language-select:focus {
+  outline: none;
+  border-color: var(--brand, #3b82f6);
+}
+/* 下拉选项样式 */
+.language-select option {
+  background: var(--bg-panel, #fff);
+  color: var(--text-primary, #1f2328);
+  padding: 8px 12px;
+}
+.language-select option:checked {
+  background: var(--brand, #3b82f6);
+  color: white;
 }
 .saved-path {
   font-size: 12px;

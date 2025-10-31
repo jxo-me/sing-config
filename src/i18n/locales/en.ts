@@ -158,5 +158,11 @@ export default {
       description: 'DNS server port',
     },
   },
+  jsonEditor: {
+    invalidJson: 'Invalid JSON',
+    parseError: 'JSON Parse Error',
+    validationError: 'Validation Error',
+    schemaError: 'Schema Validation Error',
+  },
 };
 

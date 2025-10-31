@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { currentConfig, setConfig } from '../../stores/config';
 import { useI18n } from '../../i18n';
 
-const { t, currentLocale } = useI18n();
+const { currentLocale } = useI18n();
 
 const log = computed(() => currentConfig.value.log as Record<string, unknown> | undefined || {});
 
@@ -49,7 +49,7 @@ async function updateLogField(field: string, value: unknown) {
       <label>
         <input
           type="checkbox"
-          :checked="log.timestamp || false"
+          :checked="!!log.timestamp"
           @change="updateLogField('timestamp', ($event.target as HTMLInputElement).checked)"
         />
         {{ currentLocale === 'zh' ? '包含时间戳' : 'Include Timestamp' }}
@@ -60,7 +60,7 @@ async function updateLogField(field: string, value: unknown) {
       <label>
         <input
           type="checkbox"
-          :checked="log.disable_colors || false"
+          :checked="!!log.disable_colors"
           @change="updateLogField('disable_colors', ($event.target as HTMLInputElement).checked)"
         />
         {{ currentLocale === 'zh' ? '禁用颜色' : 'Disable Colors' }}

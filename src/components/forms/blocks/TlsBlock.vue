@@ -9,7 +9,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (e: 'update:modelValue', v: Record<string, unknown> | undefined): void }>();
 
-const { t, currentLocale } = useI18n();
+const { currentLocale } = useI18n();
 const tls = computed({
   get: () => props.modelValue || {},
   set: (v) => emit('update:modelValue', Object.keys(v).length > 0 ? v : undefined),
@@ -42,7 +42,7 @@ function updateField(field: string, value: unknown) {
     <div v-if="enabled" class="block-content">
       <div class="field-group">
         <label v-if="mode === 'outbound'">{{ currentLocale === 'zh' ? '禁用 SNI' : 'Disable SNI' }}</label>
-        <input v-if="mode === 'outbound'" type="checkbox" :checked="tls.disable_sni" @change="updateField('disable_sni', ($event.target as HTMLInputElement).checked)" />
+        <input v-if="mode === 'outbound'" type="checkbox" :checked="!!tls.disable_sni" @change="updateField('disable_sni', ($event.target as HTMLInputElement).checked)" />
       </div>
       <div class="field-group">
         <label>{{ currentLocale === 'zh' ? '服务器名称' : 'Server Name' }}</label>
@@ -50,7 +50,7 @@ function updateField(field: string, value: unknown) {
       </div>
       <div class="field-group" v-if="mode === 'outbound'">
         <label>{{ currentLocale === 'zh' ? '不安全模式' : 'Insecure' }}</label>
-        <input type="checkbox" :checked="tls.insecure" @change="updateField('insecure', ($event.target as HTMLInputElement).checked)" />
+        <input type="checkbox" :checked="!!tls.insecure" @change="updateField('insecure', ($event.target as HTMLInputElement).checked)" />
       </div>
       <div class="field-group">
         <label>ALPN</label>
@@ -66,7 +66,7 @@ function updateField(field: string, value: unknown) {
       </div>
       <div class="field-group" v-if="mode === 'outbound'">
         <label>{{ currentLocale === 'zh' ? 'TLS 分片' : 'TLS Fragment' }}</label>
-        <input type="checkbox" :checked="tls.fragment" @change="updateField('fragment', ($event.target as HTMLInputElement).checked)" />
+        <input type="checkbox" :checked="!!tls.fragment" @change="updateField('fragment', ($event.target as HTMLInputElement).checked)" />
       </div>
       <div class="field-group" v-if="mode === 'outbound' && tls.utls">
         <label>uTLS</label>

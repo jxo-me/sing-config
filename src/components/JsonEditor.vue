@@ -7,12 +7,17 @@ import { lineNumbers } from '@codemirror/view';
 import { foldGutter } from '@codemirror/language';
 import { bracketMatching } from '@codemirror/language';
 import { highlightSelectionMatches } from '@codemirror/search';
-import { history } from '@codemirror/commands';
+import { history, defaultKeymap, indentWithTab } from '@codemirror/commands';
 import { indentOnInput, indentUnit } from '@codemirror/language';
+import { keymap } from '@codemirror/view';
 import { closeBrackets } from '@codemirror/autocomplete';
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import { jsonSchema } from '../lib/codemirror-json-schema';
+import { contextMenu } from '../lib/codemirror-context-menu';
+import { useI18n } from '../i18n';
+
+const { currentLocale } = useI18n();
 
 const props = defineProps<{ modelValue: string }>();
 const emit = defineEmits<{ 
@@ -24,6 +29,26 @@ let editor: EditorView | null = null;
 const container = ref<HTMLElement | null>(null);
 let changeTimer: number | undefined;
 let resizeObserver: ResizeObserver | null = null;
+
+// 监听语言变化，重新验证以更新错误消息和菜单
+watch(currentLocale, () => {
+  // 语言变化时，更新 localStorage 并触发编辑器重新验证
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('locale', currentLocale.value);
+  }
+  // 关闭已打开的菜单
+  const existingMenu = document.querySelector('.cm-context-menu');
+  if (existingMenu) {
+    existingMenu.remove();
+  }
+  if (editor) {
+    // 触发 CodeMirror 重新运行 linter 以更新错误消息
+    editor.dispatch({
+      effects: [],
+    });
+    editor.requestMeasure();
+  }
+});
 
 // JSON 语法高亮样式
 const jsonHighlightStyle = HighlightStyle.define([
@@ -53,6 +78,11 @@ onMounted(async () => {
     json(), // JSON 语言支持（包含语法高亮）
     syntaxHighlighting(jsonHighlightStyle), // 应用语法高亮样式
     jsonSchema(), // JSON Schema 验证
+    contextMenu(), // 自定义多语言右键菜单
+    keymap.of([
+      indentWithTab, // Tab 键缩进，Shift+Tab 取消缩进
+      ...defaultKeymap, // 其他默认快捷键（包括 Ctrl+A, Ctrl+C, Ctrl+V 等）
+    ]),
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
         window.clearTimeout(changeTimer);

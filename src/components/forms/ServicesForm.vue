@@ -76,7 +76,7 @@ async function updateService(idx: number, field: string, value: unknown) {
             <div class="field-group">
               <label>{{ currentLocale === 'zh' ? '服务器列表' : 'Server List' }}</label>
               <textarea
-                :value="Array.isArray(service.server_list) ? service.server_list.join('\n') : service.server_list || ''"
+                :value="Array.isArray(service.server_list) ? service.server_list.join('\n') : (service.server_list ? String(service.server_list) : '')"
                 @input="updateService(idx, 'server_list', ($event.target as HTMLTextAreaElement).value.split('\n').filter(Boolean))"
                 rows="3"
                 placeholder="https://derp1.example.com"
@@ -106,7 +106,7 @@ async function updateService(idx: number, field: string, value: unknown) {
             <div class="field-group">
               <label>{{ currentLocale === 'zh' ? 'DNS 服务器' : 'DNS Servers' }}</label>
               <textarea
-                :value="Array.isArray(service.servers) ? service.servers.join('\n') : service.servers || ''"
+                :value="Array.isArray(service.servers) ? service.servers.join('\n') : (service.servers ? String(service.servers) : '')"
                 @input="updateService(idx, 'servers', ($event.target as HTMLTextAreaElement).value.split('\n').filter(Boolean))"
                 rows="3"
                 placeholder="8.8.8.8"
@@ -116,7 +116,7 @@ async function updateService(idx: number, field: string, value: unknown) {
               <label>
                 <input
                   type="checkbox"
-                  :checked="service.set_mark || false"
+                  :checked="!!service.set_mark"
                   @change="updateService(idx, 'set_mark', ($event.target as HTMLInputElement).checked)"
                 />
                 {{ currentLocale === 'zh' ? '设置标记' : 'Set Mark' }}

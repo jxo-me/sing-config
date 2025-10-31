@@ -158,5 +158,11 @@ export default {
       description: 'DNS 服务器端口',
     },
   },
+  jsonEditor: {
+    invalidJson: '无效的 JSON',
+    parseError: 'JSON 解析错误',
+    validationError: '验证错误',
+    schemaError: 'Schema 验证错误',
+  },
 };
 

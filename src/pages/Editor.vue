@@ -15,6 +15,7 @@ import ExperimentalForm from '../components/forms/ExperimentalForm.vue';
 import { currentConfig, errorCount, lastValidation, toPrettyJson, loadFromText, runValidation, configDiff, isDirty } from '../stores/config';
 import { useI18n } from '../i18n';
 import { runPreflightCheck, type PreflightIssue } from '../lib/preflight';
+import { localizeErrorMessage } from '../lib/codemirror-json-schema';
 
 const { t, currentLocale } = useI18n();
 
@@ -339,8 +340,8 @@ function gotoError(path: string) {
                 <button @click="validateNow" class="validate-btn">{{ t.common.validate }}</button>
                 <ul class="errors">
                   <li v-for="(e, idx) in lastValidation.errors" :key="idx" @click="gotoError(e.path)" class="error-item">
-                    <span class="path">{{ e.path || '(root)' }}</span>
-                    <span class="msg">{{ e.message }}</span>
+                    <span class="path">{{ e.path || (currentLocale === 'zh' ? '(根)' : '(root)') }}</span>
+                    <span class="msg">{{ localizeErrorMessage(e.message) }}</span>
                   </li>
                   <li v-if="lastValidation.errors.length === 0" class="no-errors">
                     {{ currentLocale === 'zh' ? '没有错误' : 'No errors' }}
@@ -423,11 +424,11 @@ function gotoError(path: string) {
 .placeholder { padding: 40px; text-align: center; color: var(--text-secondary, #64748b); }
 .right { width: 320px; border-left: 1px solid var(--border, #e5e7eb); padding: 8px; overflow: auto; }
 .summary { font-weight: 600; margin-bottom: 8px; }
-.errors { margin: 8px 0 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
-.error-item { padding: 6px 8px; border-radius: 4px; cursor: pointer; transition: background 0.2s; }
+.errors { margin: 8px 0 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.error-item { padding: 10px 12px; border-radius: 4px; cursor: pointer; transition: background 0.2s; line-height: 1.5; }
 .error-item:hover { background: var(--bg-app, #f5f5f5); }
-.path { color: #64748b; margin-right: 6px; font-family: ui-monospace, monospace; font-size: 12px; }
-.msg { color: #dc2626; }
+.path { color: #64748b; margin-right: 8px; font-family: ui-monospace, monospace; font-size: 13px; font-weight: 500; }
+.msg { color: #dc2626; font-size: 14px; line-height: 1.6; }
 .panel { display: flex; flex-direction: column; height: 100%; }
 .tabs { display: flex; gap: 4px; padding: 8px; border-bottom: 1px solid var(--border, #e5e7eb); }
 .tabs button { padding: 6px 12px; border: none; background: transparent; cursor: pointer; font-size: 12px; border-radius: 4px; }
