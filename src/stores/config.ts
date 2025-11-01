@@ -88,7 +88,74 @@ export interface DiffItem {
 export function getConfigDiff(): DiffItem[] {
   const diffs: DiffItem[] = [];
   
-  function compareObjects(oldObj: any, newObj: any, path: string = '') {
+  /**
+   * 比较数组，识别新增、删除和修改的元素
+   */
+  function compareArrays(oldArr: any[], newArr: any[], path: string): DiffItem[] {
+    const diffs: DiffItem[] = [];
+    
+    // 如果数组完全相等，直接返回
+    if (JSON.stringify(oldArr) === JSON.stringify(newArr)) {
+      return diffs;
+    }
+    
+    // 使用索引比较：识别新增、删除和修改
+    const maxLength = Math.max(oldArr.length, newArr.length);
+    
+    for (let i = 0; i < maxLength; i++) {
+      const itemPath = `${path}[${i}]`;
+      const oldItem = oldArr[i];
+      const newItem = newArr[i];
+      
+      if (i >= oldArr.length) {
+        // 新增的元素
+        diffs.push(classifyDiff({
+          path: itemPath,
+          oldValue: undefined,
+          newValue: newItem,
+          type: 'added',
+          category: 'addition'
+        }));
+      } else if (i >= newArr.length) {
+        // 删除的元素
+        diffs.push(classifyDiff({
+          path: itemPath,
+          oldValue: oldItem,
+          newValue: undefined,
+          type: 'removed',
+          category: 'deletion'
+        }));
+      } else {
+        // 检查元素是否修改
+        if (Array.isArray(oldItem) && Array.isArray(newItem)) {
+          // 嵌套数组递归比较
+          const nestedDiffs = compareArrays(oldItem, newItem, itemPath);
+          diffs.push(...nestedDiffs);
+        } else if (typeof oldItem === 'object' && oldItem !== null && typeof newItem === 'object' && newItem !== null) {
+          // 嵌套对象递归比较 - 使用内部比较函数收集差异
+          const nestedDiffs = compareObjectsInternal(oldItem, newItem, itemPath);
+          diffs.push(...nestedDiffs);
+        } else if (JSON.stringify(oldItem) !== JSON.stringify(newItem)) {
+          // 值修改
+          diffs.push(classifyDiff({
+            path: itemPath,
+            oldValue: oldItem,
+            newValue: newItem,
+            type: 'modified',
+            category: 'modification'
+          }));
+        }
+      }
+    }
+    
+    return diffs;
+  }
+  
+  /**
+   * 内部对象比较函数，返回差异数组（用于数组元素中的对象比较）
+   */
+  function compareObjectsInternal(oldObj: any, newObj: any, path: string = ''): DiffItem[] {
+    const internalDiffs: DiffItem[] = [];
     const allKeys = new Set([...Object.keys(oldObj || {}), ...Object.keys(newObj || {})]);
     
     for (const key of allKeys) {
@@ -97,52 +164,47 @@ export function getConfigDiff(): DiffItem[] {
       const newVal = newObj?.[key];
       
       if (!(key in oldObj)) {
-        // 新增的字段
-        const diff: DiffItem = {
+        internalDiffs.push(classifyDiff({
           path: currentPath,
           oldValue: undefined,
           newValue: newVal,
           type: 'added',
           category: 'addition'
-        };
-        diffs.push(classifyDiff(diff));
+        }));
       } else if (!(key in newObj)) {
-        // 删除的字段
-        const diff: DiffItem = {
+        internalDiffs.push(classifyDiff({
           path: currentPath,
           oldValue: oldVal,
           newValue: undefined,
           type: 'removed',
           category: 'deletion'
-        };
-        diffs.push(classifyDiff(diff));
+        }));
       } else if (Array.isArray(oldVal) && Array.isArray(newVal)) {
-        // 数组比较
-        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
-          const diff: DiffItem = {
-            path: currentPath,
-            oldValue: oldVal,
-            newValue: newVal,
-            type: 'modified',
-            category: oldVal.length !== newVal.length ? 'modification' : 'reorder'
-          };
-          diffs.push(classifyDiff(diff));
-        }
+        const arrayDiffs = compareArrays(oldVal, newVal, currentPath);
+        internalDiffs.push(...arrayDiffs);
       } else if (typeof oldVal === 'object' && oldVal !== null && typeof newVal === 'object' && newVal !== null) {
-        // 递归比较对象
-        compareObjects(oldVal, newVal, currentPath);
+        const nestedDiffs = compareObjectsInternal(oldVal, newVal, currentPath);
+        internalDiffs.push(...nestedDiffs);
       } else if (oldVal !== newVal) {
-        // 值已修改
-        const diff: DiffItem = {
+        internalDiffs.push(classifyDiff({
           path: currentPath,
           oldValue: oldVal,
           newValue: newVal,
           type: 'modified',
           category: 'modification'
-        };
-        diffs.push(classifyDiff(diff));
+        }));
       }
     }
+    
+    return internalDiffs;
+  }
+  
+  /**
+   * 对象比较函数，直接修改 diffs 数组（用于顶层比较）
+   */
+  function compareObjects(oldObj: any, newObj: any, path: string = '') {
+    const objectDiffs = compareObjectsInternal(oldObj, newObj, path);
+    diffs.push(...objectDiffs);
   }
   
   compareObjects(originalConfig.value, currentConfig.value);
@@ -198,3 +260,4 @@ export const configDiff = computed(() => getConfigDiff());
 export function setLastOpenedPath(path: string | null) {
   lastOpenedPath.value = path;
 }
+
