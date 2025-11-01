@@ -329,4 +329,42 @@ button:disabled {
   max-width: 700px;
   height: 600px;
 }
+
+/* 移动端 Topbar 优化 */
+@media (max-width: 767px) {
+  .topbar {
+    padding: 8px 12px !important;
+    gap: 8px !important;
+  }
+  
+  .topbar-left {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    flex: 1;
+    -webkit-overflow-scrolling: touch; /* iOS 平滑滚动 */
+  }
+  
+  .topbar-left button {
+    font-size: 12px !important;
+    padding: 6px 10px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0;
+  }
+  
+  .topbar-right {
+    flex-shrink: 0 !important;
+    gap: 6px !important;
+  }
+  
+  .language-select {
+    font-size: 11px !important;
+    padding: 4px 6px !important;
+    margin-right: 4px !important;
+  }
+  
+  .saved-path {
+    display: none; /* 移动端隐藏保存路径 */
+  }
+}
 </style>
