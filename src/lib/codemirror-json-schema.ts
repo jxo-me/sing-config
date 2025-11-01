@@ -1,6 +1,7 @@
 import { Extension } from '@codemirror/state';
 import { linter, type Diagnostic } from '@codemirror/lint';
 import { EditorView } from '@codemirror/view';
+import type { ViewUpdate } from '@codemirror/view';
 import { ref } from 'vue';
 import { jsonSchemaLinter, stateExtensions, handleRefresh, type JSONValidationOptions } from 'codemirror-json-schema';
 import { loadSchema } from './schema';
@@ -739,6 +740,18 @@ function createWrappedLinter(options: JSONValidationOptions) {
 
 // 创建 JSON Schema 扩展（使用 codemirror-json-schema 官方包）
 let schemaExtensionPromise: Promise<Extension[]> | null = null;
+let lastLocale: 'zh' | 'en' = getCurrentLocale();
+
+// 自定义 needsRefresh 函数，检测语言变化
+function needsRefreshWithLocale(vu: ViewUpdate): boolean {
+  const currentLocale = getCurrentLocale();
+  const localeChanged = lastLocale !== currentLocale;
+  if (localeChanged) {
+    lastLocale = currentLocale;
+  }
+  // 如果语言变化或 schema 变化，都需要刷新
+  return localeChanged || handleRefresh(vu);
+}
 
 export async function jsonSchema(): Promise<Extension[]> {
   if (schemaExtensionPromise) {
@@ -756,7 +769,7 @@ export async function jsonSchema(): Promise<Extension[]> {
       ...stateExtensions(schema),
       // 添加 linter（包装以提取错误）
       linter(createWrappedLinter(options), {
-        needsRefresh: handleRefresh,
+        needsRefresh: needsRefreshWithLocale,
       }),
     ];
   })();
