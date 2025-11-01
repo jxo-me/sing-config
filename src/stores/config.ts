@@ -90,6 +90,8 @@ export function getConfigDiff(): DiffItem[] {
   
   /**
    * 比较数组，识别新增、删除和修改的元素
+   * 使用基于内容的匹配算法，避免索引变化导致的误判
+   * 参考 Git diff 算法：匹配相同/相似的元素，只标记真正的变更
    */
   function compareArrays(oldArr: any[], newArr: any[], path: string): DiffItem[] {
     const diffs: DiffItem[] = [];
@@ -99,42 +101,28 @@ export function getConfigDiff(): DiffItem[] {
       return diffs;
     }
     
-    // 使用索引比较：识别新增、删除和修改
-    const maxLength = Math.max(oldArr.length, newArr.length);
+    // 使用基于内容的匹配算法
+    // 第一步：找到匹配的元素对（相同的元素）
+    const matches = findMatchingElements(oldArr, newArr);
     
-    for (let i = 0; i < maxLength; i++) {
-      const itemPath = `${path}[${i}]`;
-      const oldItem = oldArr[i];
-      const newItem = newArr[i];
-      
-      if (i >= oldArr.length) {
-        // 新增的元素
-        diffs.push(classifyDiff({
-          path: itemPath,
-          oldValue: undefined,
-          newValue: newItem,
-          type: 'added',
-          category: 'addition'
-        }));
-      } else if (i >= newArr.length) {
-        // 删除的元素
-        diffs.push(classifyDiff({
-          path: itemPath,
-          oldValue: oldItem,
-          newValue: undefined,
-          type: 'removed',
-          category: 'deletion'
-        }));
-      } else {
-        // 检查元素是否修改
+    // 第二步：处理匹配的元素（可能是修改）
+    for (const match of matches) {
+      if (match.oldIndex !== -1 && match.newIndex !== -1) {
+        const oldItem = oldArr[match.oldIndex];
+        const newItem = newArr[match.newIndex];
+        const itemPath = `${path}[${match.newIndex}]`;
+        
+        // 检查是否真的修改了
         if (Array.isArray(oldItem) && Array.isArray(newItem)) {
           // 嵌套数组递归比较
           const nestedDiffs = compareArrays(oldItem, newItem, itemPath);
           diffs.push(...nestedDiffs);
         } else if (typeof oldItem === 'object' && oldItem !== null && typeof newItem === 'object' && newItem !== null) {
-          // 嵌套对象递归比较 - 使用内部比较函数收集差异
+          // 嵌套对象递归比较
           const nestedDiffs = compareObjectsInternal(oldItem, newItem, itemPath);
-          diffs.push(...nestedDiffs);
+          if (nestedDiffs.length > 0) {
+            diffs.push(...nestedDiffs);
+          }
         } else if (JSON.stringify(oldItem) !== JSON.stringify(newItem)) {
           // 值修改
           diffs.push(classifyDiff({
@@ -148,7 +136,136 @@ export function getConfigDiff(): DiffItem[] {
       }
     }
     
+    // 第三步：处理未匹配的旧元素（删除）
+    const matchedOldIndices = new Set(matches.filter(m => m.oldIndex !== -1).map(m => m.oldIndex));
+    for (let i = 0; i < oldArr.length; i++) {
+      if (!matchedOldIndices.has(i)) {
+        diffs.push(classifyDiff({
+          path: `${path}[${i}]`,
+          oldValue: oldArr[i],
+          newValue: undefined,
+          type: 'removed',
+          category: 'deletion'
+        }));
+      }
+    }
+    
+    // 第四步：处理未匹配的新元素（新增）
+    const matchedNewIndices = new Set(matches.filter(m => m.newIndex !== -1).map(m => m.newIndex));
+    for (let i = 0; i < newArr.length; i++) {
+      if (!matchedNewIndices.has(i)) {
+        diffs.push(classifyDiff({
+          path: `${path}[${i}]`,
+          oldValue: undefined,
+          newValue: newArr[i],
+          type: 'added',
+          category: 'addition'
+        }));
+      }
+    }
+    
     return diffs;
+  }
+  
+  /**
+   * 找到两个数组中匹配的元素
+   * 返回匹配对数组，每个匹配包含 { oldIndex, newIndex }
+   * 使用启发式算法：优先匹配相同的内容
+   */
+  function findMatchingElements(oldArr: any[], newArr: any[]): Array<{ oldIndex: number; newIndex: number }> {
+    const matches: Array<{ oldIndex: number; newIndex: number }> = [];
+    const usedOldIndices = new Set<number>();
+    const usedNewIndices = new Set<number>();
+    
+    // 第一步：精确匹配（JSON 字符串完全相同）
+    for (let i = 0; i < oldArr.length; i++) {
+      if (usedOldIndices.has(i)) continue;
+      
+      const oldStr = JSON.stringify(oldArr[i]);
+      for (let j = 0; j < newArr.length; j++) {
+        if (usedNewIndices.has(j)) continue;
+        
+        const newStr = JSON.stringify(newArr[j]);
+        if (oldStr === newStr) {
+          matches.push({ oldIndex: i, newIndex: j });
+          usedOldIndices.add(i);
+          usedNewIndices.add(j);
+          break;
+        }
+      }
+    }
+    
+    // 第二步：相似匹配（对象结构相似，尝试匹配）
+    // 对于对象类型，如果主要属性相同，认为是同一个元素
+    for (let i = 0; i < oldArr.length; i++) {
+      if (usedOldIndices.has(i)) continue;
+      
+      const oldItem = oldArr[i];
+      if (typeof oldItem !== 'object' || oldItem === null || Array.isArray(oldItem)) {
+        continue; // 只匹配对象类型
+      }
+      
+      // 尝试找到最相似的新元素
+      let bestMatch: { index: number; similarity: number } | null = null;
+      
+      for (let j = 0; j < newArr.length; j++) {
+        if (usedNewIndices.has(j)) continue;
+        
+        const newItem = newArr[j];
+        if (typeof newItem !== 'object' || newItem === null || Array.isArray(newItem)) {
+          continue;
+        }
+        
+        // 计算相似度：检查有多少相同的键和值
+        const similarity = calculateObjectSimilarity(oldItem, newItem);
+        if (similarity > 0.5 && (!bestMatch || similarity > bestMatch.similarity)) {
+          bestMatch = { index: j, similarity };
+        }
+      }
+      
+      if (bestMatch) {
+        matches.push({ oldIndex: i, newIndex: bestMatch.index });
+        usedOldIndices.add(i);
+        usedNewIndices.add(bestMatch.index);
+      }
+    }
+    
+    return matches;
+  }
+  
+  /**
+   * 计算两个对象的相似度（0-1）
+   */
+  function calculateObjectSimilarity(obj1: any, obj2: any): number {
+    const keys1 = new Set(Object.keys(obj1));
+    const keys2 = new Set(Object.keys(obj2));
+    const allKeys = new Set([...keys1, ...keys2]);
+    
+    if (allKeys.size === 0) return 1;
+    
+    let matchCount = 0;
+    let totalKeys = allKeys.size;
+    
+    for (const key of allKeys) {
+      const val1 = obj1[key];
+      const val2 = obj2[key];
+      
+      if (!(key in obj1) || !(key in obj2)) {
+        // 键只在一个对象中存在
+        continue;
+      }
+      
+      // 如果值相同或相似
+      if (JSON.stringify(val1) === JSON.stringify(val2)) {
+        matchCount++;
+      } else if (typeof val1 === 'object' && typeof val2 === 'object' && val1 !== null && val2 !== null) {
+        // 递归计算嵌套对象的相似度
+        const nestedSimilarity = calculateObjectSimilarity(val1, val2);
+        matchCount += nestedSimilarity;
+      }
+    }
+    
+    return totalKeys > 0 ? matchCount / totalKeys : 0;
   }
   
   /**
