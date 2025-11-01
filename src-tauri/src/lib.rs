@@ -10,7 +10,7 @@ mod tray;
 use menu::build_menu;
 #[cfg(desktop)]
 use tray::{build_tray, handle_window_close};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::AppHandle;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
