@@ -299,5 +299,30 @@ impl MenuI18n {
             "About"
         }
     }
+
+    // 托盘菜单
+    pub fn tray_show(&self) -> &str {
+        if self.is_zh() {
+            "显示主窗口"
+        } else {
+            "Show Main Window"
+        }
+    }
+
+    pub fn tray_hide(&self) -> &str {
+        if self.is_zh() {
+            "隐藏窗口"
+        } else {
+            "Hide Window"
+        }
+    }
+
+    pub fn tray_quit(&self) -> &str {
+        if self.is_zh() {
+            "退出"
+        } else {
+            "Quit"
+        }
+    }
 }
 
