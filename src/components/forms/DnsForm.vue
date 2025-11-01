@@ -324,6 +324,11 @@ button:hover { background: var(--bg-app, #f5f5f5); }
     white-space: nowrap;
   }
   
+  /* DNS 规则展开内容改为单列，避免溢出 */
+  .rule-fields {
+    grid-template-columns: 1fr !important;
+  }
+  
   /* 其他表单的头保持垂直布局 */
   .inbound-header-actions,
   .outbound-header-actions,
