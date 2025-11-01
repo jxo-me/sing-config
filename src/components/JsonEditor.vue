@@ -5,7 +5,7 @@ import { EditorState, Extension, StateEffect } from '@codemirror/state';
 import { json } from '@codemirror/lang-json';
 import { foldGutter } from '@codemirror/language';
 import { bracketMatching } from '@codemirror/language';
-import { highlightSelectionMatches } from '@codemirror/search';
+import { highlightSelectionMatches, searchKeymap, openSearchPanel } from '@codemirror/search';
 import { history, defaultKeymap, indentWithTab, undo, redo } from '@codemirror/commands';
 import { indentOnInput, indentUnit } from '@codemirror/language';
 import { keymap } from '@codemirror/view';
@@ -85,6 +85,7 @@ onMounted(async () => {
     keymap.of([
       indentWithTab, // Tab 键缩进，Shift+Tab 取消缩进
       ...defaultKeymap, // 其他默认快捷键（包括 Ctrl+A, Ctrl+C, Ctrl+V 等）
+      ...searchKeymap, // 搜索快捷键（Ctrl+F, Ctrl+H 等）
     ]),
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
@@ -260,6 +261,21 @@ defineExpose({
     if (editor) {
       redo(editor);
       editor.focus();
+    }
+  },
+  openSearch: () => {
+    if (editor) {
+      openSearchPanel(editor);
+    }
+  },
+  openReplace: () => {
+    if (editor) {
+      // 在 CodeMirror 6 中，替换功能是搜索面板的一部分
+      // 打开搜索面板后，用户可以通过面板中的按钮切换到替换模式
+      // 或者直接使用快捷键 Ctrl+H (已包含在 searchKeymap 中)
+      openSearchPanel(editor);
+      // 注意：替换面板实际上就是搜索面板的扩展模式
+      // 用户打开搜索面板后，可以看到替换相关的输入框和按钮
     }
   },
 });

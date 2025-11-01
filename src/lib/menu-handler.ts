@@ -16,7 +16,7 @@ let topbarRef: { onNew?: () => Promise<void>; onOpen?: () => Promise<void>; onSa
 const processingEvents = new Set<string>();
 
 // Editor 组件引用
-let editorRef: { mode?: string; setMode?: (mode: 'form' | 'json') => void; runPreflight?: () => Promise<void>; runValidation?: () => Promise<void>; jsonEditor?: { undo?: () => void; redo?: () => void } | null } | null = null;
+let editorRef: { mode?: string; setMode?: (mode: 'form' | 'json') => void; runPreflight?: () => Promise<void>; runValidation?: () => Promise<void>; jsonEditor?: { undo?: () => void; redo?: () => void; openSearch?: () => void; openReplace?: () => void } | null } | null = null;
 
 /**
  * 设置 Topbar 引用
@@ -101,13 +101,13 @@ async function handleMenuEvent(menuId: string) {
         break;
 
       case 'edit_find':
-        // TODO: 实现查找功能（CodeMirror 自带）
-        console.log('Find');
+        // 打开搜索面板（CodeMirror 自带）
+        editorRef?.jsonEditor?.openSearch?.();
         break;
 
       case 'edit_replace':
-        // TODO: 实现替换功能（CodeMirror 自带）
-        console.log('Replace');
+        // 打开替换面板（CodeMirror 自带）
+        editorRef?.jsonEditor?.openReplace?.();
         break;
 
       case 'edit_format':

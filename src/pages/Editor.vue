@@ -62,6 +62,8 @@ const jsonEditorRef = ref<{
   setScrollPosition: (scrollTop: number, scrollLeft?: number) => void;
   undo?: () => void;
   redo?: () => void;
+  openSearch?: () => void;
+  openReplace?: () => void;
 } | null>(null);
 const formContainerRef = ref<HTMLDivElement | null>(null);
 
@@ -226,6 +228,24 @@ function handleKeyboardShortcuts(event: KeyboardEvent) {
     return;
   }
   
+  // Ctrl+F / Cmd+F: 查找（JSON 模式）
+  if ((event.ctrlKey || event.metaKey) && !event.shiftKey && (event.key === 'f' || event.key === 'F')) {
+    if (mode.value === 'json' && jsonEditorRef.value?.openSearch) {
+      event.preventDefault();
+      jsonEditorRef.value.openSearch();
+    }
+    return;
+  }
+  
+  // Ctrl+H / Cmd+H: 替换（JSON 模式）
+  if ((event.ctrlKey || event.metaKey) && !event.shiftKey && (event.key === 'h' || event.key === 'H')) {
+    if (mode.value === 'json' && jsonEditorRef.value?.openReplace) {
+      event.preventDefault();
+      jsonEditorRef.value.openReplace();
+    }
+    return;
+  }
+  
   // Ctrl+Shift+F / Cmd+Shift+F: 格式化（JSON 模式）
   if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'f' || event.key === 'F')) {
     event.preventDefault();
@@ -329,6 +349,9 @@ onMounted(async () => {
   // 更新窗口标题的函数
   const updateWindowTitle = async () => {
     let title = 'sing-config';
+    // 优先使用保存路径，如果不存在则使用打开路径
+    // 如果保存路径存在，说明文件已经保存过，应该显示保存的文件名
+    // 如果只有打开路径，说明是新打开的文件，还未保存
     const filePath = lastSavedPath.value || lastOpenedPath.value;
     
     if (filePath) {
@@ -338,6 +361,7 @@ onMounted(async () => {
     }
     
     // 如果有未保存的修改，添加星号
+    // 注意：如果文件已保存（有 lastSavedPath），但后来又被修改了，也应该显示星号
     if (isDirty.value) {
       title += '*';
     }

@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { open, save, message } from '@tauri-apps/plugin-dialog';
-import { loadFromText, toPrettyJson, runValidation, lastValidation, setLastSavedPath, setLastOpenedPath, lastSavedPath, setConfig, setOriginalConfig } from '../stores/config';
+import { loadFromText, toPrettyJson, runValidation, lastValidation, setLastSavedPath, setLastOpenedPath, lastSavedPath, lastOpenedPath, setConfig, setOriginalConfig } from '../stores/config';
 import { useI18n } from '../i18n';
 import TemplateLibrary from './TemplateLibrary.vue';
 import SetupWizard from './SetupWizard.vue';
@@ -32,9 +32,14 @@ async function onOpen() {
   opening.value = true;
   try {
     const path = await open({ multiple: false, filters: [{ name: 'JSON', extensions: ['json'] }] });
-    if (!path || Array.isArray(path)) return;
+    if (!path || Array.isArray(path)) {
+      opening.value = false;
+      return;
+    }
     const content = await readTextFile(path as string);
     await loadFromText(content);
+    // 打开新文件时，清除之前的保存路径（因为这是新打开的文件）
+    setLastSavedPath(null);
     setLastOpenedPath(path as string);
   } catch (error) {
     console.error('Failed to open file:', error);
@@ -49,6 +54,9 @@ async function onLoadExample() {
     if (!resp.ok) throw new Error(String(resp.status));
     const text = await resp.text();
     await loadFromText(text);
+    // 加载示例时，清除文件路径
+    setLastSavedPath(null);
+    setLastOpenedPath(null);
   } catch (e) {
     await message(
       currentLocale.value === 'zh' 
@@ -87,6 +95,10 @@ async function onSave() {
   try {
     await writeTextFile(path, text);
     setLastSavedPath(path);
+    // 保存后，更新打开路径（如果保存的是当前打开的文件）
+    if (!lastOpenedPath.value || lastOpenedPath.value === path) {
+      setLastOpenedPath(path);
+    }
     await message(
       currentLocale.value === 'zh' ? '保存成功' : 'Saved successfully',
       { kind: 'info', title: currentLocale.value === 'zh' ? '保存' : 'Save' }
@@ -114,12 +126,16 @@ async function onSaveAs() {
     return;
   }
   const text = toPrettyJson();
-  const path = await save({ filters: [{ name: 'JSON', extensions: ['json'] }] });
-  if (!path) return;
+  const savedPath = await save({ filters: [{ name: 'JSON', extensions: ['json'] }] });
+  if (!savedPath) return;
+  const path = savedPath as string;
+  
   saving.value = true;
   try {
-    await writeTextFile(path as string, text);
-    setLastSavedPath(path as string);
+    await writeTextFile(path, text);
+    setLastSavedPath(path);
+    // 另存为后，更新打开路径
+    setLastOpenedPath(path);
     await message(
       currentLocale.value === 'zh' ? '保存成功' : 'Saved successfully',
       { kind: 'info', title: currentLocale.value === 'zh' ? '保存' : 'Save' }
