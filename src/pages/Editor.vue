@@ -15,7 +15,7 @@ import ExperimentalForm from '../components/forms/ExperimentalForm.vue';
 import { currentConfig, errorCount, lastValidation, toPrettyJson, loadFromText, runValidation, configDiff, isDirty, lastSavedPath, lastOpenedPath } from '../stores/config';
 import { useI18n } from '../i18n';
 import { runPreflightCheck, type PreflightIssue } from '../lib/preflight';
-import { localizeErrorMessage, editorErrors, editorValidationState } from '../lib/codemirror-json-schema';
+import { editorErrors, editorValidationState } from '../lib/codemirror-json-schema';
 import { setupMenuHandlers, cleanupMenuHandlers, setTopbarRef, setEditorRef } from '../lib/menu-handler';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -699,7 +699,7 @@ async function gotoError(path: string) {
                 <ul class="errors">
                   <li v-for="(e, idx) in displayedErrors" :key="idx" @click="gotoError(e.path)" class="error-item">
                     <span class="path">{{ e.path || (currentLocale === 'zh' ? '(根)' : '(root)') }}</span>
-                    <span class="msg">{{ localizeErrorMessage(e.message) }}</span>
+                    <span class="msg">{{ e.message }}</span>
                   </li>
                   <li v-if="displayedErrors.length === 0" class="no-errors">
                     {{ currentLocale === 'zh' ? '没有错误' : 'No errors' }}
