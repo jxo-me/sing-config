@@ -24,6 +24,10 @@ const { t, currentLocale, setLocale } = useI18n();
 // 监听语言变化，触发错误消息重新本地化
 watch(currentLocale, async () => {
   // 当语言切换时，编辑器会重新验证（通过 JsonEditor 中的 watch(currentLocale)）
+  // 如果当前显示的是表单模式的错误，重新验证以更新消息语言
+  if (mode.value === 'form') {
+    await runValidation();
+  }
   // 如果当前显示的是运行检查结果，重新运行检查以更新消息语言
   if (activeTab.value === 'preflight' && preflightIssues.value.length > 0) {
     preflightIssues.value = await runPreflightCheck();
