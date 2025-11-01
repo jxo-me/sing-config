@@ -519,6 +519,16 @@ function createWrappedLinter(options: JSONValidationOptions) {
           console.log('[Bubble i18n]', oldMsg.substring(0, 60), '→', diag.message.substring(0, 60));
         }
       }
+      
+      // 重要：重写 renderMessage 以使用本地化后的消息
+      if (diag.renderMessage) {
+        const localizedMsg = diag.message;
+        diag.renderMessage = () => {
+          const dom = document.createElement('div');
+          dom.textContent = localizedMsg;
+          return dom;
+        };
+      }
     }
     
     // 同时进行独立验证以获取完整的路径信息（异步执行，不阻塞诊断返回）
