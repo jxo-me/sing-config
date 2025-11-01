@@ -18,8 +18,12 @@ import { runPreflightCheck, type PreflightIssue } from '../lib/preflight';
 import { editorErrors, editorValidationState } from '../lib/codemirror-json-schema';
 import { setupMenuHandlers, cleanupMenuHandlers, setTopbarRef, setEditorRef } from '../lib/menu-handler';
 import { invoke } from '@tauri-apps/api/core';
+import { useResponsive } from '../composables/useResponsive';
 
 const { t, currentLocale, setLocale } = useI18n();
+
+// 响应式布局检测
+const { isMobile } = useResponsive();
 
 // 监听语言变化，触发错误消息重新本地化
 watch(currentLocale, async () => {
@@ -59,6 +63,10 @@ const topbarRef = ref<{ onNew: () => Promise<void>; onSave: () => Promise<void>;
 const mode = ref<'json' | 'form'>('json');
 const activeForm = ref<'log' | 'dns' | 'ntp' | 'certificate' | 'endpoints' | 'inbounds' | 'outbounds' | 'route' | 'services' | 'experimental'>('dns');
 const activeTab = ref<'errors' | 'diff' | 'preflight'>('errors');
+
+// 移动端布局控制状态
+const showMobilePanel = ref(false); // 是否显示全屏面板
+const showMobileSidebar = ref(false); // 是否显示表单抽屉
 const text = ref(toPrettyJson());
 const jsonEditorRef = ref<{ 
   gotoLine: (line: number, column?: number) => void;
@@ -148,6 +156,24 @@ const currentErrorCount = computed(() => {
   } else {
     return errorCount.value;
   }
+});
+
+// 计算当前表单标签
+const currentFormLabel = computed(() => {
+  const labels: Record<string, { zh: string; en: string }> = {
+    'log': { zh: '日志', en: 'Log' },
+    'dns': { zh: 'DNS', en: 'DNS' },
+    'ntp': { zh: 'NTP', en: 'NTP' },
+    'certificate': { zh: '证书', en: 'Certificate' },
+    'endpoints': { zh: '端点', en: 'Endpoints' },
+    'inbounds': { zh: '入站', en: 'Inbounds' },
+    'outbounds': { zh: '出站', en: 'Outbounds' },
+    'route': { zh: '路由', en: 'Route' },
+    'services': { zh: '服务', en: 'Services' },
+    'experimental': { zh: '实验', en: 'Experimental' },
+  };
+  const label = labels[activeForm.value] || { zh: '未知', en: 'Unknown' };
+  return currentLocale.value === 'zh' ? label.zh : label.en;
 });
 
 // 计算差异统计信息
@@ -622,14 +648,21 @@ async function gotoError(path: string) {
 </script>
 
 <template>
-  <div class="editor-layout">
+  <div class="editor-layout" :class="{ 'mobile-layout': isMobile }">
     <Topbar ref="topbarRef" />
     <div class="mode-switcher">
       <button :class="{ active: mode === 'json' }" @click="mode = 'json'">{{ t.common.json }}</button>
       <button :class="{ active: mode === 'form' }" @click="mode = 'form'">{{ t.common.form }}</button>
     </div>
+    
+    <!-- Mobile: 表单抽屉按钮 -->
+    <button v-if="isMobile && mode === 'form'" class="mobile-sidebar-toggle" @click="showMobileSidebar = true">
+      {{ currentFormLabel }}
+    </button>
+    
     <div class="body">
-      <div v-show="mode === 'form'" class="sidebar">
+      <!-- Desktop: 固定侧边栏 -->
+      <div v-show="mode === 'form' && !isMobile" class="sidebar">
         <nav class="form-nav">
           <button :class="{ active: activeForm === 'log' }" @click="activeForm = 'log'">
             {{ currentLocale === 'zh' ? '日志' : 'Log' }}
@@ -687,103 +720,261 @@ async function gotoError(path: string) {
           </div>
         </div>
       </div>
-          <div class="right">
-            <div class="panel">
-              <div class="tabs">
-                <button :class="{ active: activeTab === 'errors' }" @click="activeTab = 'errors'">
-                  {{ t.common.errors }} ({{ currentErrorCount }})
-                </button>
-                <button :class="{ active: activeTab === 'diff' }" @click="activeTab = 'diff'">
-                  {{ currentLocale === 'zh' ? '差异' : 'Diff' }} ({{ configDiff.length }})
-                </button>
-                <button :class="{ active: activeTab === 'preflight' }" @click="runPreflight">
-                  {{ currentLocale === 'zh' ? '运行检查' : 'Preflight' }} ({{ preflightIssues.length }})
-                </button>
+      
+      <!-- Desktop: 固定右侧面板 -->
+      <div v-if="!isMobile" class="right">
+        <div class="panel">
+          <div class="tabs">
+            <button :class="{ active: activeTab === 'errors' }" @click="activeTab = 'errors'">
+              {{ t.common.errors }} ({{ currentErrorCount }})
+            </button>
+            <button :class="{ active: activeTab === 'diff' }" @click="activeTab = 'diff'">
+              {{ currentLocale === 'zh' ? '差异' : 'Diff' }} ({{ configDiff.length }})
+            </button>
+            <button :class="{ active: activeTab === 'preflight' }" @click="runPreflight">
+              {{ currentLocale === 'zh' ? '运行检查' : 'Preflight' }} ({{ preflightIssues.length }})
+            </button>
+          </div>
+          
+          <div v-show="activeTab === 'errors'" class="tab-content">
+            <button @click="validateNow" class="validate-btn" v-if="mode === 'form'">{{ t.common.validate }}</button>
+            <div v-if="mode === 'json'" class="validation-status">
+              <span class="status-text">
+                {{ currentLocale === 'zh' 
+                  ? `实时校验中... (${currentErrorCount} 个错误)` 
+                  : `Real-time validation... (${currentErrorCount} errors)` }}
+              </span>
+            </div>
+            <ul class="errors">
+              <li v-for="(e, idx) in displayedErrors" :key="idx" @click="gotoError(e.path)" class="error-item">
+                <span class="path">{{ e.path || (currentLocale === 'zh' ? '(根)' : '(root)') }}</span>
+                <span class="msg">{{ e.message }}</span>
+              </li>
+              <li v-if="displayedErrors.length === 0" class="no-errors">
+                {{ currentLocale === 'zh' ? '没有错误' : 'No errors' }}
+              </li>
+            </ul>
+          </div>
+          
+          <div v-show="activeTab === 'diff'" class="tab-content">
+            <div v-if="configDiff.length > 0" class="diff-summary">
+              <div class="diff-stats">
+                <span class="stat-item added">
+                  <strong>{{ diffStats.added }}</strong> {{ currentLocale === 'zh' ? '新增' : 'Added' }}
+                </span>
+                <span class="stat-item removed">
+                  <strong>{{ diffStats.removed }}</strong> {{ currentLocale === 'zh' ? '删除' : 'Removed' }}
+                </span>
+                <span class="stat-item modified">
+                  <strong>{{ diffStats.modified }}</strong> {{ currentLocale === 'zh' ? '修改' : 'Modified' }}
+                </span>
               </div>
-              
-              <div v-show="activeTab === 'errors'" class="tab-content">
-                <button @click="validateNow" class="validate-btn" v-if="mode === 'form'">{{ t.common.validate }}</button>
-                <div v-if="mode === 'json'" class="validation-status">
-                  <span class="status-text">
-                    {{ currentLocale === 'zh' 
-                      ? `实时校验中... (${currentErrorCount} 个错误)` 
-                      : `Real-time validation... (${currentErrorCount} errors)` }}
+            </div>
+            <div class="diff-list">
+              <div v-for="(diff, idx) in configDiff.slice(0, 50)" :key="idx" class="diff-item" :class="[diff.type, diff.severity || 'minor']">
+                <div class="diff-header">
+                  <div class="diff-path">{{ diff.path }}</div>
+                  <span v-if="diff.severity === 'major'" class="diff-badge major">
+                    {{ currentLocale === 'zh' ? '重要' : 'Major' }}
                   </span>
                 </div>
-                <ul class="errors">
-                  <li v-for="(e, idx) in displayedErrors" :key="idx" @click="gotoError(e.path)" class="error-item">
-                    <span class="path">{{ e.path || (currentLocale === 'zh' ? '(根)' : '(root)') }}</span>
-                    <span class="msg">{{ e.message }}</span>
-                  </li>
-                  <li v-if="displayedErrors.length === 0" class="no-errors">
-                    {{ currentLocale === 'zh' ? '没有错误' : 'No errors' }}
-                  </li>
-                </ul>
-              </div>
-              
-              <div v-show="activeTab === 'diff'" class="tab-content">
-                <div v-if="configDiff.length > 0" class="diff-summary">
-                  <div class="diff-stats">
-                    <span class="stat-item added">
-                      <strong>{{ diffStats.added }}</strong> {{ currentLocale === 'zh' ? '新增' : 'Added' }}
-                    </span>
-                    <span class="stat-item removed">
-                      <strong>{{ diffStats.removed }}</strong> {{ currentLocale === 'zh' ? '删除' : 'Removed' }}
-                    </span>
-                    <span class="stat-item modified">
-                      <strong>{{ diffStats.modified }}</strong> {{ currentLocale === 'zh' ? '修改' : 'Modified' }}
-                    </span>
+                <div v-if="diff.type === 'modified'" class="diff-body">
+                  <div class="diff-change">
+                    <span class="diff-label">{{ currentLocale === 'zh' ? '旧值' : 'Old' }}:</span>
+                    <span class="diff-value">{{ formatDiffValue(diff.oldValue) }}</span>
                   </div>
-                </div>
-                <div class="diff-list">
-                  <div v-for="(diff, idx) in configDiff.slice(0, 50)" :key="idx" class="diff-item" :class="[diff.type, diff.severity || 'minor']">
-                    <div class="diff-header">
-                      <div class="diff-path">{{ diff.path }}</div>
-                      <span v-if="diff.severity === 'major'" class="diff-badge major">
-                        {{ currentLocale === 'zh' ? '重要' : 'Major' }}
-                      </span>
-                    </div>
-                    <div class="diff-values">
-                      <div v-if="diff.type === 'modified' || diff.type === 'removed'" class="diff-old">
-                        <span class="diff-label">{{ currentLocale === 'zh' ? '旧值' : 'Old' }}:</span>
-                        <span class="diff-value">{{ formatDiffValue(diff.oldValue) }}</span>
-                      </div>
-                      <div v-if="diff.type === 'modified' || diff.type === 'added'" class="diff-new">
-                        <span class="diff-label">{{ currentLocale === 'zh' ? '新值' : 'New' }}:</span>
-                        <span class="diff-value">{{ formatDiffValue(diff.newValue) }}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div v-if="configDiff.length === 0" class="no-diff">
-                    {{ currentLocale === 'zh' ? '没有修改' : 'No changes' }}
-                  </div>
-                  <div v-if="configDiff.length > 50" class="diff-more">
-                    {{ currentLocale === 'zh' ? `还有 ${configDiff.length - 50} 个修改...` : `${configDiff.length - 50} more changes...` }}
+                  <div class="diff-change">
+                    <span class="diff-label">{{ currentLocale === 'zh' ? '新值' : 'New' }}:</span>
+                    <span class="diff-value">{{ formatDiffValue(diff.newValue) }}</span>
                   </div>
                 </div>
               </div>
-              
-              <div v-show="activeTab === 'preflight'" class="tab-content">
-                <button @click="runPreflight" class="validate-btn">{{ currentLocale === 'zh' ? '重新检查' : 'Re-check' }}</button>
-                <div class="preflight-list">
-                  <div v-for="(issue, idx) in preflightIssues" :key="idx" class="preflight-item" :class="getIssueLevelClass(issue.level)" @click="gotoError(issue.path)">
-                    <div class="issue-header">
-                      <span class="issue-level">{{ issue.level.toUpperCase() }}</span>
-                      <span class="issue-path">{{ issue.path || (currentLocale === 'zh' ? '(根)' : '(root)') }}</span>
-                    </div>
-                    <div class="issue-message">{{ issue.message }}</div>
-                    <div v-if="issue.fix" class="issue-fix">
-                      <span class="fix-label">{{ currentLocale === 'zh' ? '建议修复' : 'Suggested fix' }}:</span>
-                      <span class="fix-text">{{ issue.fix }}</span>
-                    </div>
-                  </div>
-                  <div v-if="preflightIssues.length === 0" class="no-issues">
-                    {{ currentLocale === 'zh' ? '没有发现问题' : 'No issues found' }}
-                  </div>
-                </div>
+              <div v-if="configDiff.length === 0" class="no-diff">
+                {{ currentLocale === 'zh' ? '没有修改' : 'No changes' }}
+              </div>
+              <div v-if="configDiff.length > 50" class="diff-more">
+                {{ currentLocale === 'zh' ? `还有 ${configDiff.length - 50} 个修改...` : `${configDiff.length - 50} more changes...` }}
               </div>
             </div>
           </div>
+          
+          <div v-show="activeTab === 'preflight'" class="tab-content">
+            <button @click="runPreflight" class="validate-btn">{{ currentLocale === 'zh' ? '重新检查' : 'Re-check' }}</button>
+            <div class="preflight-list">
+              <div v-for="(issue, idx) in preflightIssues" :key="idx" class="preflight-item" :class="getIssueLevelClass(issue.level)" @click="gotoError(issue.path)">
+                <div class="issue-header">
+                  <span class="issue-level">{{ issue.level.toUpperCase() }}</span>
+                  <span class="issue-path">{{ issue.path || (currentLocale === 'zh' ? '(根)' : '(root)') }}</span>
+                </div>
+                <div class="issue-message">{{ issue.message }}</div>
+                <div v-if="issue.fix" class="issue-fix">
+                  <span class="fix-label">{{ currentLocale === 'zh' ? '建议修复' : 'Suggested fix' }}:</span>
+                  <span class="fix-text">{{ issue.fix }}</span>
+                </div>
+              </div>
+              <div v-if="preflightIssues.length === 0" class="no-issues">
+                {{ currentLocale === 'zh' ? '没有发现问题' : 'No issues found' }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Mobile: 底部标签栏 -->
+    <div v-if="isMobile" class="mobile-tabs">
+      <button :class="{ active: activeTab === 'errors' }" @click="showMobilePanel = true; activeTab = 'errors'">
+        {{ t.common.errors }} ({{ currentErrorCount }})
+      </button>
+      <button :class="{ active: activeTab === 'diff' }" @click="showMobilePanel = true; activeTab = 'diff'">
+        {{ currentLocale === 'zh' ? '差异' : 'Diff' }} ({{ configDiff.length }})
+      </button>
+      <button :class="{ active: activeTab === 'preflight' }" @click="runPreflight">
+        {{ currentLocale === 'zh' ? '运行检查' : 'Preflight' }} ({{ preflightIssues.length }})
+      </button>
+    </div>
+    
+    <!-- Mobile: 全屏错误/差异面板 -->
+    <div v-if="isMobile && showMobilePanel" class="mobile-panel-overlay" @click="showMobilePanel = false">
+      <div class="mobile-panel" @click.stop>
+        <div class="panel">
+          <div class="tabs">
+            <button :class="{ active: activeTab === 'errors' }" @click="activeTab = 'errors'">
+              {{ t.common.errors }} ({{ currentErrorCount }})
+            </button>
+            <button :class="{ active: activeTab === 'diff' }" @click="activeTab = 'diff'">
+              {{ currentLocale === 'zh' ? '差异' : 'Diff' }} ({{ configDiff.length }})
+            </button>
+            <button :class="{ active: activeTab === 'preflight' }" @click="runPreflight">
+              {{ currentLocale === 'zh' ? '运行检查' : 'Preflight' }} ({{ preflightIssues.length }})
+            </button>
+          </div>
+          
+          <div v-show="activeTab === 'errors'" class="tab-content">
+            <button @click="validateNow" class="validate-btn" v-if="mode === 'form'">{{ t.common.validate }}</button>
+            <div v-if="mode === 'json'" class="validation-status">
+              <span class="status-text">
+                {{ currentLocale === 'zh' 
+                  ? `实时校验中... (${currentErrorCount} 个错误)` 
+                  : `Real-time validation... (${currentErrorCount} errors)` }}
+              </span>
+            </div>
+            <ul class="errors">
+              <li v-for="(e, idx) in displayedErrors" :key="idx" @click="gotoError(e.path)" class="error-item">
+                <span class="path">{{ e.path || (currentLocale === 'zh' ? '(根)' : '(root)') }}</span>
+                <span class="msg">{{ e.message }}</span>
+              </li>
+              <li v-if="displayedErrors.length === 0" class="no-errors">
+                {{ currentLocale === 'zh' ? '没有错误' : 'No errors' }}
+              </li>
+            </ul>
+          </div>
+          
+          <div v-show="activeTab === 'diff'" class="tab-content">
+            <div v-if="configDiff.length > 0" class="diff-summary">
+              <div class="diff-stats">
+                <span class="stat-item added">
+                  <strong>{{ diffStats.added }}</strong> {{ currentLocale === 'zh' ? '新增' : 'Added' }}
+                </span>
+                <span class="stat-item removed">
+                  <strong>{{ diffStats.removed }}</strong> {{ currentLocale === 'zh' ? '删除' : 'Removed' }}
+                </span>
+                <span class="stat-item modified">
+                  <strong>{{ diffStats.modified }}</strong> {{ currentLocale === 'zh' ? '修改' : 'Modified' }}
+                </span>
+              </div>
+            </div>
+            <div class="diff-list">
+              <div v-for="(diff, idx) in configDiff.slice(0, 50)" :key="idx" class="diff-item" :class="[diff.type, diff.severity || 'minor']">
+                <div class="diff-header">
+                  <div class="diff-path">{{ diff.path }}</div>
+                  <span v-if="diff.severity === 'major'" class="diff-badge major">
+                    {{ currentLocale === 'zh' ? '重要' : 'Major' }}
+                  </span>
+                </div>
+                <div v-if="diff.type === 'modified'" class="diff-body">
+                  <div class="diff-change">
+                    <span class="diff-label">{{ currentLocale === 'zh' ? '旧值' : 'Old' }}:</span>
+                    <span class="diff-value">{{ formatDiffValue(diff.oldValue) }}</span>
+                  </div>
+                  <div class="diff-change">
+                    <span class="diff-label">{{ currentLocale === 'zh' ? '新值' : 'New' }}:</span>
+                    <span class="diff-value">{{ formatDiffValue(diff.newValue) }}</span>
+                  </div>
+                </div>
+              </div>
+              <div v-if="configDiff.length === 0" class="no-diff">
+                {{ currentLocale === 'zh' ? '没有修改' : 'No changes' }}
+              </div>
+              <div v-if="configDiff.length > 50" class="diff-more">
+                {{ currentLocale === 'zh' ? `还有 ${configDiff.length - 50} 个修改...` : `${configDiff.length - 50} more changes...` }}
+              </div>
+            </div>
+          </div>
+          
+          <div v-show="activeTab === 'preflight'" class="tab-content">
+            <button @click="runPreflight" class="validate-btn">{{ currentLocale === 'zh' ? '重新检查' : 'Re-check' }}</button>
+            <div class="preflight-list">
+              <div v-for="(issue, idx) in preflightIssues" :key="idx" class="preflight-item" :class="getIssueLevelClass(issue.level)" @click="gotoError(issue.path)">
+                <div class="issue-header">
+                  <span class="issue-level">{{ issue.level.toUpperCase() }}</span>
+                  <span class="issue-path">{{ issue.path || (currentLocale === 'zh' ? '(根)' : '(root)') }}</span>
+                </div>
+                <div class="issue-message">{{ issue.message }}</div>
+                <div v-if="issue.fix" class="issue-fix">
+                  <span class="fix-label">{{ currentLocale === 'zh' ? '建议修复' : 'Suggested fix' }}:</span>
+                  <span class="fix-text">{{ issue.fix }}</span>
+                </div>
+              </div>
+              <div v-if="preflightIssues.length === 0" class="no-issues">
+                {{ currentLocale === 'zh' ? '没有发现问题' : 'No issues found' }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Mobile: 表单抽屉导航 -->
+    <div v-if="isMobile && mode === 'form' && showMobileSidebar" class="drawer-overlay" @click="showMobileSidebar = false">
+      <div class="drawer" @click.stop>
+        <div class="drawer-header">
+          <h3>{{ currentLocale === 'zh' ? '表单选择' : 'Form Selection' }}</h3>
+          <button @click="showMobileSidebar = false" class="close-btn">×</button>
+        </div>
+        <nav class="form-nav">
+          <button :class="{ active: activeForm === 'log' }" @click="activeForm = 'log'; showMobileSidebar = false">
+            {{ currentLocale === 'zh' ? '日志' : 'Log' }}
+          </button>
+          <button :class="{ active: activeForm === 'dns' }" @click="activeForm = 'dns'; showMobileSidebar = false">
+            {{ t.dns.title }}
+          </button>
+          <button :class="{ active: activeForm === 'ntp' }" @click="activeForm = 'ntp'; showMobileSidebar = false">
+            {{ currentLocale === 'zh' ? 'NTP' : 'NTP' }}
+          </button>
+          <button :class="{ active: activeForm === 'certificate' }" @click="activeForm = 'certificate'; showMobileSidebar = false">
+            {{ currentLocale === 'zh' ? '证书' : 'Certificate' }}
+          </button>
+          <button :class="{ active: activeForm === 'endpoints' }" @click="activeForm = 'endpoints'; showMobileSidebar = false">
+            {{ currentLocale === 'zh' ? '端点' : 'Endpoints' }}
+          </button>
+          <button :class="{ active: activeForm === 'inbounds' }" @click="activeForm = 'inbounds'; showMobileSidebar = false">
+            {{ currentLocale === 'zh' ? '入站' : 'Inbounds' }}
+          </button>
+          <button :class="{ active: activeForm === 'outbounds' }" @click="activeForm = 'outbounds'; showMobileSidebar = false">
+            {{ currentLocale === 'zh' ? '出站' : 'Outbounds' }}
+          </button>
+          <button :class="{ active: activeForm === 'route' }" @click="activeForm = 'route'; showMobileSidebar = false">
+            {{ currentLocale === 'zh' ? '路由' : 'Route' }}
+          </button>
+          <button :class="{ active: activeForm === 'services' }" @click="activeForm = 'services'; showMobileSidebar = false">
+            {{ currentLocale === 'zh' ? '服务' : 'Services' }}
+          </button>
+          <button :class="{ active: activeForm === 'experimental' }" @click="activeForm = 'experimental'; showMobileSidebar = false">
+            {{ currentLocale === 'zh' ? '实验' : 'Experimental' }}
+          </button>
+        </nav>
+      </div>
     </div>
   </div>
 </template>
@@ -1061,4 +1252,204 @@ async function gotoError(path: string) {
 .fix-label { font-weight: 600; margin-right: 6px; }
 .fix-text { font-style: italic; }
 .no-issues { padding: 24px; text-align: center; color: var(--text-secondary, #666); font-size: 13px; }
+
+/* Mobile 布局样式 */
+@media (max-width: 767px) {
+  /* 移动端单栏布局 */
+  .mobile-layout .body {
+    flex-direction: column;
+  }
+  
+  .mobile-layout .sidebar {
+    display: none !important;
+  }
+  
+  .mobile-layout .left {
+    width: 100%;
+    padding: 4px;
+  }
+  
+  /* 移动端抽屉按钮 */
+  .mobile-sidebar-toggle {
+    width: 100%;
+    margin: 8px;
+    padding: 12px 16px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 8px;
+    background: var(--brand, #3b82f6);
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .mobile-sidebar-toggle:hover {
+    background: var(--brand-hover, #2563eb);
+  }
+  
+  /* 底部标签栏 */
+  .mobile-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 12px 8px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-panel);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .mobile-tabs button {
+    flex: 1;
+    padding: 12px 8px;
+    text-align: center;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+  }
+  
+  .mobile-tabs button.active {
+    background: var(--brand);
+    color: white;
+  }
+  
+  /* 全屏面板遮罩 */
+  .mobile-panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 200;
+    display: flex;
+    align-items: flex-end;
+  }
+  
+  .mobile-panel {
+    width: 100%;
+    max-height: 80vh;
+    background: var(--bg-panel);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .mobile-panel .panel {
+    height: auto;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .mobile-panel .tabs {
+    flex-shrink: 0;
+  }
+  
+  .mobile-panel .tab-content {
+    flex: 1;
+    overflow-y: auto;
+  }
+  
+  /* 抽屉遮罩 */
+  .drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 150;
+  }
+  
+  .drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    max-width: 80vw;
+    background: var(--bg-panel);
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  
+  .drawer-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  
+  .drawer .close-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    font-size: 28px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+  }
+  
+  .drawer .close-btn:hover {
+    background: var(--bg-hover);
+  }
+  
+  .drawer .form-nav {
+    flex: 1;
+    padding: 12px;
+    overflow-y: auto;
+  }
+  
+  /* Topbar 优化 */
+  .mobile-layout .topbar {
+    padding: 8px 12px;
+  }
+  
+  .mobile-layout .topbar-left {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  
+  .mobile-layout .topbar-left button {
+    font-size: 12px;
+    padding: 6px 10px;
+    white-space: nowrap;
+  }
+  
+  /* 模式切换器优化 */
+  .mode-switcher {
+    padding: 8px 12px;
+  }
+  
+  .mode-switcher button {
+    font-size: 13px;
+    padding: 8px 16px;
+    min-width: 70px;
+  }
+}
 </style>
