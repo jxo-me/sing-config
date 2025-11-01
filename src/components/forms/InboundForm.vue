@@ -285,5 +285,70 @@ button:hover { background: var(--bg-app, #f5f5f5); }
 .user-item { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; margin-bottom: 8px; padding: 8px; background: var(--bg-app, #f5f5f5); border-radius: 4px; }
 .add-btn-small { padding: 4px 8px; font-size: 12px; background: var(--brand, #3b82f6); color: white; border-color: var(--brand, #3b82f6); }
 .add-btn-small:hover { background: var(--brand-hover, #2563eb); }
+
+/* 移动端优化 */
+@media (max-width: 767px) {
+  .inbound-header-actions,
+  .outbound-header-actions,
+  .service-header-actions,
+  .endpoint-header-actions {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  
+  .inbound-header,
+  .outbound-header,
+  .service-header,
+  .endpoint-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  
+  .inbound-header-actions,
+  .outbound-header-actions,
+  .service-header-actions,
+  .endpoint-header-actions {
+    width: 100% !important;
+  }
+  
+  .inbound-header-actions > label,
+  .outbound-header-actions > label,
+  .service-header-actions > label,
+  .endpoint-header-actions > label {
+    font-size: 11px !important;
+  }
+  
+  .inbound-header-actions > select,
+  .inbound-header-actions > input,
+  .outbound-header-actions > select,
+  .outbound-header-actions > input,
+  .service-header-actions > select,
+  .service-header-actions > input,
+  .endpoint-header-actions > select,
+  .endpoint-header-actions > input {
+    font-size: 12px !important;
+  }
+  
+  .inbound-header-actions > button,
+  .outbound-header-actions > button,
+  .service-header-actions > button,
+  .endpoint-header-actions > button {
+    flex: 1;
+    min-width: 80px;
+  }
+  
+  .inbound-fields > .field-group,
+  .outbound-fields > .field-group {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .user-item {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .user-item button {
+    width: 100%;
+  }
+}
 </style>
 

@@ -107,5 +107,12 @@ function updateField(field: string, value: unknown) {
 .field-group label { font-size: 12px; }
 input[type="text"], input[type="number"], select { padding: 4px 8px; border: 1px solid var(--border, #e5e7eb); border-radius: 4px; font-size: 13px; }
 input[type="checkbox"] { cursor: pointer; }
+
+/* 移动端优化 */
+@media (max-width: 767px) {
+  .block-content {
+    grid-template-columns: 1fr !important;
+  }
+}
 </style>
 

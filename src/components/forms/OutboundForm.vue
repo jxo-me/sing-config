@@ -271,5 +271,40 @@ button { padding: 6px 12px; cursor: pointer; border: 1px solid var(--border, #e5
 button:hover { background: var(--bg-app, #f5f5f5); }
 .add-btn { margin-top: 8px; background: var(--brand, #3b82f6); color: white; border-color: var(--brand, #3b82f6); }
 .add-btn:hover { background: var(--brand-hover, #2563eb); }
+
+/* 移动端优化 */
+@media (max-width: 767px) {
+  .outbound-header-actions {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  
+  .outbound-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  
+  .outbound-header-actions {
+    width: 100% !important;
+  }
+  
+  .outbound-header-actions > label {
+    font-size: 11px !important;
+  }
+  
+  .outbound-header-actions > select,
+  .outbound-header-actions > input {
+    font-size: 12px !important;
+  }
+  
+  .outbound-header-actions > button {
+    flex: 1;
+    min-width: 80px;
+  }
+  
+  .outbound-fields > .field-group {
+    grid-template-columns: 1fr !important;
+  }
+}
 </style>
 

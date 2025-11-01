@@ -282,4 +282,77 @@ button { padding: 6px 12px; cursor: pointer; border: 1px solid var(--border, #e5
 button:hover { background: var(--bg-app, #f5f5f5); }
 .add-btn { margin-top: 8px; background: var(--brand, #3b82f6); color: white; border-color: var(--brand, #3b82f6); }
 .add-btn:hover { background: var(--brand-hover, #2563eb); }
+
+/* 移动端优化 */
+@media (max-width: 767px) {
+  .server-item {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  
+  .server-item label {
+    font-size: 11px !important;
+  }
+  
+  .server-item select,
+  .server-item input {
+    font-size: 12px !important;
+  }
+  
+  .server-item button {
+    width: 100%;
+    margin-top: 4px;
+  }
+  
+  .rule-header-actions,
+  .inbound-header-actions,
+  .outbound-header-actions,
+  .service-header-actions,
+  .endpoint-header-actions {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  
+  .rule-header,
+  .inbound-header,
+  .outbound-header,
+  .service-header,
+  .endpoint-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  
+  .inbound-header-actions,
+  .outbound-header-actions,
+  .service-header-actions,
+  .endpoint-header-actions {
+    width: 100% !important;
+  }
+  
+  .inbound-header-actions > label,
+  .outbound-header-actions > label,
+  .service-header-actions > label,
+  .endpoint-header-actions > label {
+    font-size: 11px !important;
+  }
+  
+  .inbound-header-actions > select,
+  .inbound-header-actions > input,
+  .outbound-header-actions > select,
+  .outbound-header-actions > input,
+  .service-header-actions > select,
+  .service-header-actions > input,
+  .endpoint-header-actions > select,
+  .endpoint-header-actions > input {
+    font-size: 12px !important;
+  }
+  
+  .inbound-header-actions > button,
+  .outbound-header-actions > button,
+  .service-header-actions > button,
+  .endpoint-header-actions > button {
+    flex: 1;
+    min-width: 80px;
+  }
+}
 </style>

@@ -677,5 +677,56 @@ button:hover { background: var(--bg-app, #f5f5f5); }
 .inline-rule-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .inline-rule-fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
 .field-hint { font-size: 11px; color: var(--text-secondary, #666); margin: 0; margin-top: 2px; }
+
+/* 移动端优化 */
+@media (max-width: 767px) {
+  .rule-header-actions,
+  .ruleset-header-actions {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  
+  .rule-header,
+  .ruleset-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  
+  .rule-header-actions,
+  .ruleset-header-actions {
+    width: 100% !important;
+  }
+  
+  .rule-header-actions > label,
+  .ruleset-header-actions > label {
+    font-size: 11px !important;
+  }
+  
+  .rule-header-actions > select,
+  .rule-header-actions > input,
+  .ruleset-header-actions > select,
+  .ruleset-header-actions > input {
+    font-size: 12px !important;
+  }
+  
+  .rule-header-actions > button,
+  .ruleset-header-actions > button {
+    flex: 1;
+    min-width: 80px;
+  }
+  
+  .rule-fields,
+  .ruleset-fields {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .inline-rule-fields {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .inline-rule-header button {
+    width: 100%;
+  }
+}
 </style>
 

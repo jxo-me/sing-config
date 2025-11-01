@@ -182,5 +182,36 @@ button { padding: 6px 12px; cursor: pointer; border: 1px solid var(--border, #e5
 button:hover { background: var(--bg-app, #f5f5f5); }
 .add-btn { margin-top: 8px; background: var(--brand, #3b82f6); color: white; border-color: var(--brand, #3b82f6); }
 .add-btn:hover { background: var(--brand-hover, #2563eb); }
+
+/* 移动端优化 */
+@media (max-width: 767px) {
+  .service-header-actions {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  
+  .service-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  
+  .service-header-actions {
+    width: 100% !important;
+  }
+  
+  .service-header-actions > label {
+    font-size: 11px !important;
+  }
+  
+  .service-header-actions > select,
+  .service-header-actions > input {
+    font-size: 12px !important;
+  }
+  
+  .service-header-actions > button {
+    flex: 1;
+    min-width: 80px;
+  }
+}
 </style>
 

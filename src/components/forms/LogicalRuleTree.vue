@@ -850,4 +850,33 @@ select:focus {
   border-color: var(--brand, #3b82f6);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
+
+/* 移动端优化 */
+@media (max-width: 767px) {
+  .subrule-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  
+  .subrule-header-actions {
+    width: 100% !important;
+    justify-content: stretch !important;
+  }
+  
+  .subrule-header-actions .action-btn {
+    flex: 1;
+  }
+  
+  .subrule-fields {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .quick-add-actions {
+    flex-direction: column !important;
+  }
+  
+  .quick-add-btn {
+    width: 100%;
+  }
+}
 </style>
