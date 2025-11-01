@@ -3,7 +3,7 @@ import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { EditorView, lineNumbers } from '@codemirror/view';
 import { EditorState, Extension, StateEffect } from '@codemirror/state';
 import { json } from '@codemirror/lang-json';
-import { foldGutter } from '@codemirror/language';
+import { foldGutter, foldedRanges, foldEffect } from '@codemirror/language';
 import { bracketMatching } from '@codemirror/language';
 import { highlightSelectionMatches, searchKeymap, openSearchPanel } from '@codemirror/search';
 import { history, defaultKeymap, indentWithTab, undo, redo } from '@codemirror/commands';
@@ -276,6 +276,27 @@ defineExpose({
       openSearchPanel(editor);
       // 注意：替换面板实际上就是搜索面板的扩展模式
       // 用户打开搜索面板后，可以看到替换相关的输入框和按钮
+    }
+  },
+  getFoldState: () => {
+    if (editor) {
+      // 获取所有折叠的范围
+      const folded = foldedRanges(editor.state);
+      const ranges: Array<{ from: number; to: number }> = [];
+      folded.between(0, editor.state.doc.length, (from, to) => {
+        ranges.push({ from, to });
+      });
+      return ranges;
+    }
+    return [];
+  },
+  setFoldState: (ranges: Array<{ from: number; to: number }>) => {
+    if (editor && ranges.length > 0) {
+      // 应用折叠状态
+      const effects = ranges.map(range => foldEffect.of(range));
+      editor.dispatch({
+        effects,
+      });
     }
   },
 });

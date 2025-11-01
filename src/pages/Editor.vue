@@ -64,15 +64,17 @@ const jsonEditorRef = ref<{
   redo?: () => void;
   openSearch?: () => void;
   openReplace?: () => void;
+  getFoldState?: () => Array<{ from: number; to: number }>;
+  setFoldState?: (ranges: Array<{ from: number; to: number }>) => void;
 } | null>(null);
 const formContainerRef = ref<HTMLDivElement | null>(null);
 
-// 保存滚动位置
+// 保存滚动位置和折叠状态
 const scrollPositions = ref<{
-  json: { scrollTop: number; scrollLeft: number };
+  json: { scrollTop: number; scrollLeft: number; foldRanges: Array<{ from: number; to: number }> };
   form: { scrollTop: number; scrollLeft: number };
 }>({
-  json: { scrollTop: 0, scrollLeft: 0 },
+  json: { scrollTop: 0, scrollLeft: 0, foldRanges: [] },
   form: { scrollTop: 0, scrollLeft: 0 },
 });
 
@@ -389,11 +391,15 @@ onBeforeUnmount(() => {
   cleanupMenuHandlers();
 });
 
-// 保存当前模式的滚动位置
+// 保存当前模式的滚动位置和折叠状态
 function saveScrollPosition(currentMode: 'json' | 'form') {
   if (currentMode === 'json' && jsonEditorRef.value) {
     const pos = jsonEditorRef.value.getScrollPosition();
-    scrollPositions.value.json = pos;
+    const foldRanges = jsonEditorRef.value.getFoldState ? jsonEditorRef.value.getFoldState() : [];
+    scrollPositions.value.json = {
+      ...pos,
+      foldRanges,
+    };
   } else if (currentMode === 'form' && formContainerRef.value) {
     scrollPositions.value.form = {
       scrollTop: formContainerRef.value.scrollTop,
@@ -402,7 +408,7 @@ function saveScrollPosition(currentMode: 'json' | 'form') {
   }
 }
 
-// 恢复滚动位置
+// 恢复滚动位置和折叠状态
 async function restoreScrollPosition(targetMode: 'json' | 'form') {
   await nextTick();
   // 额外等待确保 DOM 完全渲染
@@ -410,6 +416,10 @@ async function restoreScrollPosition(targetMode: 'json' | 'form') {
     if (targetMode === 'json' && jsonEditorRef.value) {
       const pos = scrollPositions.value.json;
       jsonEditorRef.value.setScrollPosition(pos.scrollTop, pos.scrollLeft);
+      // 恢复折叠状态
+      if (jsonEditorRef.value.setFoldState && pos.foldRanges.length > 0) {
+        jsonEditorRef.value.setFoldState(pos.foldRanges);
+      }
     } else if (targetMode === 'form' && formContainerRef.value) {
       const pos = scrollPositions.value.form;
       formContainerRef.value.scrollTop = pos.scrollTop;

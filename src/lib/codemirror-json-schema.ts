@@ -135,6 +135,16 @@ export function getCurrentLocale(): 'zh' | 'en' {
 export function localizeErrorMessage(message: string): string {
   const locale = getCurrentLocale();
   
+  // 处理 "Expected value at X to be Y, but value given is Z" 格式（json-schema-library 的详细格式）
+  const expectedValueAtMatch = message.match(/Expected\s+value\s+at.*to\s+be\s+["'`]([^"'`\s]+)["'`].*but\s+value\s+given\s+is\s+["'`]([^"'`\s]+)["'`]/i);
+  if (expectedValueAtMatch) {
+    const expectedValue = expectedValueAtMatch[1];
+    const actualValue = expectedValueAtMatch[2];
+    return locale === 'zh' 
+      ? `期望值应为 "${expectedValue}"，但实际值为 "${actualValue}"`
+      : `Expected value to be "${expectedValue}", but value given is "${actualValue}"`;
+  }
+  
   // 处理 "Additional property X in Y" 格式（多语言）
   const additionalPropMatch = message.match(/Additional\s+property\s+["']?([^"'\s.]+)["']?\s+in\s+([a-zA-Z0-9_$\.\[\]]+)/i);
   if (additionalPropMatch) {
@@ -418,9 +428,9 @@ function createFormatError(): (error: any) => string {
     };
     
     // 如果有完整的错误数据，构建更详细的消息
-    if (errorData.expected !== undefined || errorData.received !== undefined) {
+    if (errorData.expected !== undefined || errorData.received !== undefined || errorData.value !== undefined) {
       const expected = errorData.expected;
-      const received = errorData.received;
+      const received = errorData.received || errorData.value; // json-schema-library 使用 value 而不是 received
       
       if (expected && received) {
         // 处理数组类型的 expected（如 ["string", "number"]）
@@ -639,9 +649,8 @@ function createWrappedLinter(options: JSONValidationOptions) {
           
           return {
             path: ve.path,
-            // 存储原始消息（英文），在显示时动态本地化
-            // 这样可以确保语言切换时消息能正确更新
-            message: ve.originalMessage || ve.message,
+            // 存储已格式化的消息（已本地化）
+            message: ve.message,
             line,
             from,
             to,

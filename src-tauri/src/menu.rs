@@ -146,13 +146,37 @@ fn build_edit_menu<R: tauri::Runtime>(app: &AppHandle<R>, i18n: &MenuI18n) -> Re
         Some("CmdOrCtrl+Shift+Z"),
     )?;
     
+    let cut_item = MenuItem::with_id(
+        app,
+        "edit_cut",
+        i18n.edit_cut(),
+        true,
+        Some("CmdOrCtrl+X"),
+    )?;
+    
+    let copy_item = MenuItem::with_id(
+        app,
+        "edit_copy",
+        i18n.edit_copy(),
+        true,
+        Some("CmdOrCtrl+C"),
+    )?;
+    
+    let paste_item = MenuItem::with_id(
+        app,
+        "edit_paste",
+        i18n.edit_paste(),
+        true,
+        Some("CmdOrCtrl+V"),
+    )?;
+    
     let menu = SubmenuBuilder::new(app, i18n.edit_menu())
         .item(&undo_item)
         .item(&redo_item)
         .separator()
-        .cut()
-        .copy()
-        .paste()
+        .item(&cut_item)
+        .item(&copy_item)
+        .item(&paste_item)
         .separator()
         .item(&MenuItem::with_id(
             app,
