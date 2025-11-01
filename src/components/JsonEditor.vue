@@ -387,8 +387,18 @@ defineExpose({
   border-left-color: transparent !important;
 }
 
+/* 错误提示气泡容器样式 - 移除原生的边框和背景 */
+/* 注意：CodeMirror 使用动态生成的类名，可能包含特殊字符 */
+/* 移除所有包含 cm-tooltip 的元素的默认样式，但不包括 cm-tooltip-lint */
+:deep([class*="cm-tooltip"]:not([class*="cm-tooltip-lint"])) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
 /* 错误提示气泡样式（与右侧栏保持一致） */
-:deep(.cm-tooltip-lint) {
+:deep(.cm-tooltip-lint),
+:deep([class*="cm-tooltip-lint"]) {
   background: #fef2f2 !important;
   border: 1px solid #fecaca !important;
   border-left: 3px solid #ef4444 !important;
