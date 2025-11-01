@@ -1,16 +1,16 @@
 /**
- * Material Design 3 - Light Theme
+ * Material Design 3 - Light Theme (Hostinger Style)
  * 基于 Material Design 3 的浅色主题配色方案
- * 参考：https://m3.material.io/
+ * 参考：https://m3.material.io/ 和 Hostinger 品牌色
  */
 
 :root[data-theme="material-light"] {
   /* === Primary Colors (主色) === */
-  /* 使用 Material Design 3 的蓝色作为主色 */
-  --brand: #6750A4; /* Primary 40 (M3 Purple) */
-  --brand-hover: #7C4DFF; /* Primary 50 */
-  --brand-light: #EADDFF; /* Primary 90 */
-  --brand-dark: #21005D; /* Primary 10 */
+  /* 使用 Hostinger 风格的紫色作为主色 */
+  --brand: #673AB7; /* Hostinger Purple - 鲜艳的紫色主色 */
+  --brand-hover: #7B68EE; /* Lighter purple for hover */
+  --brand-light: #E1BEE7; /* Light purple variant */
+  --brand-dark: #512DA8; /* Dark purple variant */
   
   /* === Surface Colors (表面色) === */
   --bg-app: #FFFBFE; /* Surface container lowest */
@@ -53,16 +53,16 @@
   --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.15);
   
   /* === State Colors === */
-  --state-hover: rgba(103, 80, 164, 0.08); /* Primary hover overlay */
-  --state-pressed: rgba(103, 80, 164, 0.12); /* Primary pressed overlay */
-  --state-focus: rgba(103, 80, 164, 0.12); /* Primary focus ring */
+  --state-hover: rgba(103, 58, 183, 0.08); /* Primary hover overlay */
+  --state-pressed: rgba(103, 58, 183, 0.12); /* Primary pressed overlay */
+  --state-focus: rgba(103, 58, 183, 0.12); /* Primary focus ring */
   
   /* === Code Editor Specific === */
   --code-bg: #FFFFFF;
   --code-text: #1C1B1F;
   --code-string: #006E1C;
   --code-number: #9A27B0;
-  --code-keyword: #6750A4;
+  --code-keyword: #673AB7;
   --code-comment: #938F99;
 }
 

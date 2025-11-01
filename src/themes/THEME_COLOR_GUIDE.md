@@ -4,19 +4,19 @@
 
 ## 主题概览
 
-### Material Light Theme (浅色主题)
+### Material Light Theme (浅色主题) - Hostinger 风格
 **适用场景**: 日间使用，明亮环境
-- **主色调**: Purple 40 (#6750A4) - 优雅的紫色
+- **主色调**: Hostinger Purple (#673AB7) - 鲜艳的紫色，参考 Hostinger 品牌色
 - **背景**: 白色系 (#FFFBFE)
 - **文字**: 深色系 (#1C1B1F)
-- **风格**: 清爽、现代、专业
+- **风格**: 清爽、现代、专业、充满活力
 
-### Material Dark Theme (深色主题)
+### Material Dark Theme (深色主题) - Hostinger 风格
 **适用场景**: 夜间使用，低光环境
-- **主色调**: Purple 80 (#D0BCFF) - 柔和的紫色
+- **主色调**: Hostinger Purple Light (#B39DDB) - 柔和的亮紫色，适配深色背景
 - **背景**: 深色系 (#1C1B1F)
 - **文字**: 浅色系 (#E6E1E5)
-- **风格**: 护眼、舒适、现代
+- **风格**: 护眼、舒适、现代、优雅
 
 ## 颜色系统详解
 
@@ -24,20 +24,20 @@
 
 Material Design 3 使用 **tonal palettes**（色调调色板），每个颜色有从 0-100 的色调值。
 
-#### Light Theme 主色
+#### Light Theme 主色 (Hostinger 风格)
 ```css
---brand: #6750A4        /* Primary 40 - 主色 */
---brand-hover: #7C4DFF  /* Primary 50 - 悬停状态 */
---brand-light: #EADDFF /* Primary 90 - 浅色变体 */
---brand-dark: #21005D  /* Primary 10 - 深色变体 */
+--brand: #673AB7        /* Hostinger Purple - 鲜艳的紫色主色 */
+--brand-hover: #7B68EE  /* Lighter purple - 悬停状态 */
+--brand-light: #E1BEE7  /* Light purple variant - 浅色变体 */
+--brand-dark: #512DA8   /* Dark purple variant - 深色变体 */
 ```
 
-#### Dark Theme 主色
+#### Dark Theme 主色 (Hostinger 风格)
 ```css
---brand: #D0BCFF        /* Primary 80 - 主色（在暗色背景下更亮） */
---brand-hover: #EADDFF  /* Primary 90 - 悬停状态 */
---brand-light: #FEF7FF  /* Primary 99 - 最浅色 */
---brand-dark: #6750A4   /* Primary 40 - 深色变体 */
+--brand: #B39DDB        /* Hostinger Purple Light - 深色主题下的亮紫色 */
+--brand-hover: #CE93D8  /* Lighter purple - 悬停状态 */
+--brand-light: #F3E5F5  /* Light purple variant - 最浅色变体 */
+--brand-dark: #673AB7   /* Hostinger Purple - 深色变体 */
 ```
 
 ### 2. Surface Colors (表面色系统)
