@@ -12,7 +12,7 @@ import CertificateForm from '../components/forms/CertificateForm.vue';
 import EndpointsForm from '../components/forms/EndpointsForm.vue';
 import ServicesForm from '../components/forms/ServicesForm.vue';
 import ExperimentalForm from '../components/forms/ExperimentalForm.vue';
-import { currentConfig, errorCount, lastValidation, toPrettyJson, loadFromText, runValidation, configDiff, isDirty, lastSavedPath, lastOpenedPath } from '../stores/config';
+import { currentConfig, errorCount, lastValidation, toPrettyJson, loadFromText, syncEditorContentToConfig, runValidation, configDiff, isDirty, lastSavedPath, lastOpenedPath } from '../stores/config';
 import { useI18n } from '../i18n';
 import { runPreflightCheck, type PreflightIssue } from '../lib/preflight';
 import { editorErrors, editorValidationState } from '../lib/codemirror-json-schema';
@@ -104,17 +104,19 @@ function formatDiffValue(value: unknown): string {
 let timer: number | undefined;
 let isUserEditing = false; // 标记是否正在用户编辑
 
+/**
+ * JSON 模式下的输入处理
+ * 使用 syncEditorContentToConfig 而不是 loadFromText，
+ * 避免重置原始配置导致差异消失
+ */
 async function onInput(val: string) {
   isUserEditing = true; // 标记为用户编辑
   window.clearTimeout(timer);
   timer = window.setTimeout(async () => {
-    try {
-      await loadFromText(val);
-      isUserEditing = false; // 编辑完成
-    } catch (e) {
-      // 忽略解析错误，等待用户继续输入
-      isUserEditing = false;
-    }
+    // 使用 syncEditorContentToConfig 只同步内容，不更新原始配置
+    // 这样差异计算可以正常工作，不会因为输入而消失
+    syncEditorContentToConfig(val);
+    isUserEditing = false; // 编辑完成
   }, 300);
 }
 
@@ -146,6 +148,14 @@ const currentErrorCount = computed(() => {
   } else {
     return errorCount.value;
   }
+});
+
+// 计算差异统计信息
+const diffStats = computed(() => {
+  const added = configDiff.value.filter(d => d.type === 'added').length;
+  const removed = configDiff.value.filter(d => d.type === 'removed').length;
+  const modified = configDiff.value.filter(d => d.type === 'modified').length;
+  return { added, removed, modified };
 });
 
 async function runPreflight() {
@@ -958,12 +968,59 @@ async function gotoError(path: string) {
   font-weight: 500;
 }
 .no-errors, .no-diff { padding: 24px; text-align: center; color: var(--text-secondary, #666); font-size: 13px; }
+.diff-summary { 
+  padding: 12px; 
+  margin-bottom: 12px; 
+  background: var(--bg-hover, #f5f5f5); 
+  border-radius: 6px; 
+  border: 1px solid var(--border, #e5e7eb);
+}
+.diff-stats { 
+  display: flex; 
+  gap: 16px; 
+  align-items: center; 
+  flex-wrap: wrap;
+}
+.stat-item { 
+  font-size: 12px; 
+  color: var(--text-secondary, #666);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.stat-item strong { 
+  font-size: 14px; 
+  font-weight: 700;
+}
+.stat-item.added strong { color: #22c55e; }
+.stat-item.removed strong { color: #ef4444; }
+.stat-item.modified strong { color: #fbbf24; }
 .diff-list { display: flex; flex-direction: column; gap: 12px; }
-.diff-item { padding: 10px; border-radius: 4px; border-left: 3px solid; }
+.diff-item { padding: 10px; border-radius: 4px; border-left: 3px solid; transition: all 0.2s; }
 .diff-item.added { background: rgba(34, 197, 94, 0.1); border-color: #22c55e; }
 .diff-item.removed { background: rgba(239, 68, 68, 0.1); border-color: #ef4444; }
 .diff-item.modified { background: rgba(251, 191, 36, 0.1); border-color: #fbbf24; }
-.diff-path { font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary, #1f2328); word-break: break-all; }
+.diff-item.major { box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
+.diff-header { 
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  gap: 8px; 
+  margin-bottom: 6px; 
+}
+.diff-path { font-size: 12px; font-weight: 600; color: var(--text-primary, #1f2328); word-break: break-all; flex: 1; }
+.diff-badge { 
+  font-size: 10px; 
+  font-weight: 600; 
+  padding: 2px 6px; 
+  border-radius: 3px; 
+  text-transform: uppercase;
+}
+.diff-badge.major { 
+  background: rgba(239, 68, 68, 0.2); 
+  color: #dc2626; 
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
 .diff-values { display: flex; flex-direction: column; gap: 6px; }
 .diff-old, .diff-new { display: flex; flex-direction: column; gap: 4px; }
 .diff-label { font-size: 11px; font-weight: 500; color: var(--text-secondary, #666); }
