@@ -339,15 +339,15 @@ defineExpose({
   outline: none;
 }
 
-/* 错误高亮 */
+/* 错误高亮 - 移除左侧红色标记 */
 :deep(.cm-lint-marker-error) {
-  background-color: rgba(239, 68, 68, 0.2);
-  border-left: 3px solid #ef4444;
+  background-color: transparent;
+  border-left: none;
 }
 
 :deep(.cm-lint-marker-warning) {
-  background-color: rgba(251, 191, 36, 0.2);
-  border-left: 3px solid #fbbf24;
+  background-color: transparent;
+  border-left: none;
 }
 
 /* 错误提示气泡样式（与右侧栏保持一致） */
