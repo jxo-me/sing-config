@@ -304,7 +304,27 @@ button:hover { background: var(--bg-app, #f5f5f5); }
     margin-top: 4px;
   }
   
-  .rule-header-actions,
+  /* DNS 规则头保持横向布局，删除按钮在右侧 */
+  .rule-header {
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+  
+  .rule-header-main {
+    flex: 1;
+    min-width: 0; /* 允许收缩 */
+  }
+  
+  .rule-header-actions {
+    flex-shrink: 0; /* 防止按钮收缩 */
+  }
+  
+  .rule-header-actions button {
+    min-width: 60px;
+    white-space: nowrap;
+  }
+  
+  /* 其他表单的头保持垂直布局 */
   .inbound-header-actions,
   .outbound-header-actions,
   .service-header-actions,
@@ -313,7 +333,6 @@ button:hover { background: var(--bg-app, #f5f5f5); }
     gap: 6px !important;
   }
   
-  .rule-header,
   .inbound-header,
   .outbound-header,
   .service-header,
