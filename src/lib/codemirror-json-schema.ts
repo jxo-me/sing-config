@@ -528,8 +528,47 @@ function createWrappedLinter(options: JSONValidationOptions) {
       }
     }
     
+    // 立即使用本地化后的诊断同步更新 editorErrors（解决语言切换延迟问题）
+    const immediateErrors = diagnostics
+      .filter((d) => d.severity === 'error')
+      .map((d) => {
+        const message = d.message || '';
+        let path = '';
+        
+        // 尝试从消息中提取路径
+        const fullAdditionalMatch = message.match(/Additional\s+property\s+["']?([^"'\s.]+)["']?\s+in\s+([a-zA-Z0-9_$\.\[\]]+)/i);
+        if (fullAdditionalMatch) {
+          const dotPath = fullAdditionalMatch[2];
+          path = '/' + dotPath.replace(/\./g, '/').replace(/\[(\d+)\]/g, '/$1');
+        }
+        
+        const from = d.from ?? undefined;
+        let line: number | undefined;
+        if (from !== undefined) {
+          try {
+            const lineObj = view.state.doc.lineAt(from);
+            line = lineObj.number;
+          } catch {}
+        }
+        
+        return {
+          path,
+          message: d.message, // 已经本地化了
+          line,
+          from,
+          to: d.to ?? undefined,
+        };
+      });
+    
+    editorErrors.value = immediateErrors;
+    editorValidationState.value = {
+      valid: immediateErrors.length === 0,
+      errorCount: immediateErrors.length,
+      lastValidated: Date.now(),
+    };
+    
     // 同时进行独立验证以获取完整的路径信息（异步执行，不阻塞诊断返回）
-    // 使用独立验证的结果更新 editorErrors
+    // 使用独立验证的结果更新 editorErrors（异步更新会覆盖同步版本）
     (async () => {
       try {
         const source = view.state.doc.toString();
