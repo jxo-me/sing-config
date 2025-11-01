@@ -129,9 +129,26 @@ fn build_file_menu<R: tauri::Runtime>(app: &AppHandle<R>, i18n: &MenuI18n) -> Re
 
 /// 构建编辑菜单
 fn build_edit_menu<R: tauri::Runtime>(app: &AppHandle<R>, i18n: &MenuI18n) -> Result<tauri::menu::Submenu<R>, Box<dyn std::error::Error>> {
+    // 手动创建撤销和重做菜单项，以便控制 ID
+    let undo_item = MenuItem::with_id(
+        app,
+        "edit_undo",
+        i18n.edit_undo(),
+        true,
+        Some("CmdOrCtrl+Z"),
+    )?;
+    
+    let redo_item = MenuItem::with_id(
+        app,
+        "edit_redo",
+        i18n.edit_redo(),
+        true,
+        Some("CmdOrCtrl+Shift+Z"),
+    )?;
+    
     let menu = SubmenuBuilder::new(app, i18n.edit_menu())
-        .undo()
-        .redo()
+        .item(&undo_item)
+        .item(&redo_item)
         .separator()
         .cut()
         .copy()

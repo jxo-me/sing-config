@@ -239,23 +239,34 @@ onMounted(async () => {
   await nextTick();
   setTopbarRef(topbarRef.value);
   
-  // 等待编辑器完全初始化后再设置引用
-  await nextTick();
-  setEditorRef({
-    mode: mode.value,
-    setMode: (m: 'form' | 'json') => {
-      mode.value = m;
-    },
-    runPreflight: async () => {
-      preflightIssues.value = await runPreflightCheck();
-      activeTab.value = 'preflight';
-    },
-    runValidation: async () => {
-      runValidation();
-      activeTab.value = 'errors';
-    },
-    jsonEditor: jsonEditorRef.value
-  });
+  // 创建 editorRef 对象的辅助函数
+  const updateEditorRef = () => {
+    setEditorRef({
+      mode: mode.value,
+      setMode: (m: 'form' | 'json') => {
+        mode.value = m;
+      },
+      runPreflight: async () => {
+        preflightIssues.value = await runPreflightCheck();
+        activeTab.value = 'preflight';
+      },
+      runValidation: async () => {
+        runValidation();
+        activeTab.value = 'errors';
+      },
+      jsonEditor: jsonEditorRef.value
+    });
+  };
+  
+  // 初始设置
+  updateEditorRef();
+  
+  // 监听 jsonEditorRef 的变化，确保编辑器初始化后更新引用
+  watch(jsonEditorRef, (newRef) => {
+    if (newRef) {
+      updateEditorRef();
+    }
+  }, { immediate: true });
 });
 
 onBeforeUnmount(() => {
