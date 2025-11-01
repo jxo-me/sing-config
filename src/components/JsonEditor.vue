@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
-import { EditorView } from '@codemirror/view';
+import { EditorView, lineNumbers } from '@codemirror/view';
 import { EditorState, Extension, StateEffect } from '@codemirror/state';
 import { json } from '@codemirror/lang-json';
-import { lineNumbers } from '@codemirror/view';
 import { foldGutter } from '@codemirror/language';
 import { bracketMatching } from '@codemirror/language';
 import { highlightSelectionMatches } from '@codemirror/search';
@@ -94,19 +93,73 @@ onMounted(async () => {
         }, 300);
       }
     }),
-    // 自动布局
+    // 启用自动折行，避免横向滚动条
+    EditorView.lineWrapping,
+    // 自动布局和主题样式
     EditorView.theme({
       '&': {
         height: '100%',
       },
       '.cm-scroller': {
         overflow: 'auto',
+        // 自定义滚动条样式（仅在 Webkit 浏览器中）
+        '&::-webkit-scrollbar': {
+          width: '10px',
+          height: '10px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: '#f1f5f9',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: '#cbd5e1',
+          borderRadius: '5px',
+          '&:hover': {
+            background: '#94a3b8',
+          },
+        },
       },
       '.cm-editor': {
         height: '100%',
       },
       '.cm-content': {
         minHeight: '100%',
+        padding: '12px', // 增加内边距，提高可读性
+      },
+      '.cm-line': {
+        lineHeight: '1.6', // 增加行高，提高可读性
+        padding: '0 4px', // 行内边距
+      },
+      // 优化选中文本样式
+      '.cm-selectionBackground': {
+        background: '#dbeafe !important', // 更明显的选中背景
+      },
+      '&.cm-focused .cm-selectionBackground': {
+        background: '#bfdbfe !important',
+      },
+      // 优化代码折叠区域
+      '.cm-foldPlaceholder': {
+        border: '1px solid #e2e8f0',
+        borderRadius: '3px',
+        backgroundColor: '#f8fafc',
+        color: '#64748b',
+        padding: '2px 6px',
+        cursor: 'pointer',
+      },
+      // 优化行号样式
+      '.cm-lineNumbers': {
+        backgroundColor: '#f8fafc',
+        borderRight: '1px solid #e2e8f0',
+        minWidth: '40px', // 增加行号宽度，支持更多行数
+      },
+      '.cm-lineNumbers .cm-gutterElement': {
+        padding: '0 8px',
+      },
+      // 优化折叠图标
+      '.cm-foldGutter': {
+        width: '16px',
+      },
+      '.cm-foldGutter .cm-gutterElement': {
+        padding: '0 4px',
       },
     }),
   ];
@@ -214,16 +267,20 @@ defineExpose({
 :deep(.cm-editor) {
   height: 100%;
   font-size: 14px;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: 'Consolas', 'Monaco', 'Courier New', 'Menlo', monospace;
+  /* 优化字体渲染 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 :deep(.cm-scroller) {
   overflow: auto;
   height: 100%;
+  /* 确保没有横向滚动条（自动折行会处理） */
+  overflow-x: hidden;
 }
 
 :deep(.cm-content) {
-  padding: 8px;
   min-height: 100%;
 }
 

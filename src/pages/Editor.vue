@@ -19,6 +19,15 @@ import { localizeErrorMessage, editorErrors, editorValidationState } from '../li
 
 const { t, currentLocale } = useI18n();
 
+// 监听语言变化，触发错误消息重新本地化
+watch(currentLocale, async () => {
+  // 当语言切换时，编辑器会重新验证（通过 JsonEditor 中的 watch(currentLocale)）
+  // 如果当前显示的是运行检查结果，重新运行检查以更新消息语言
+  if (activeTab.value === 'preflight' && preflightIssues.value.length > 0) {
+    preflightIssues.value = await runPreflightCheck();
+  }
+});
+
 const preflightIssues = ref<PreflightIssue[]>([]);
 const showPreflight = ref(false);
 const topbarRef = ref<{ onSave: () => Promise<void>; onSaveAs: () => Promise<void>; onOpen: () => Promise<void>; onFormat: () => void } | null>(null);
@@ -497,7 +506,7 @@ async function gotoError(path: string) {
                   <div v-for="(issue, idx) in preflightIssues" :key="idx" class="preflight-item" :class="getIssueLevelClass(issue.level)" @click="gotoError(issue.path)">
                     <div class="issue-header">
                       <span class="issue-level">{{ issue.level.toUpperCase() }}</span>
-                      <span class="issue-path">{{ issue.path || '(root)' }}</span>
+                      <span class="issue-path">{{ issue.path || (currentLocale === 'zh' ? '(根)' : '(root)') }}</span>
                     </div>
                     <div class="issue-message">{{ issue.message }}</div>
                     <div v-if="issue.fix" class="issue-fix">
@@ -585,10 +594,40 @@ async function gotoError(path: string) {
 }
 .summary { font-weight: 600; margin-bottom: 8px; }
 .errors { margin: 8px 0 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-.error-item { padding: 10px 12px; border-radius: 4px; cursor: pointer; transition: background 0.2s; line-height: 1.5; }
-.error-item:hover { background: var(--bg-app, #f5f5f5); }
-.path { color: #64748b; margin-right: 8px; font-family: ui-monospace, monospace; font-size: 13px; font-weight: 500; }
-.msg { color: #dc2626; font-size: 14px; line-height: 1.6; }
+.error-item { 
+  padding: 12px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  transition: all 0.2s ease; 
+  line-height: 1.6; 
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 3px solid #ef4444;
+}
+.error-item:hover { 
+  background: #fee2e2; 
+  border-color: #fca5a5;
+  transform: translateX(2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.path { 
+  display: block;
+  color: #64748b; 
+  margin-bottom: 6px; 
+  font-family: ui-monospace, monospace; 
+  font-size: 12px; 
+  font-weight: 600;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 4px;
+  word-break: break-all;
+}
+.msg { 
+  color: #dc2626; 
+  font-size: 13px; 
+  line-height: 1.6;
+  font-weight: 500;
+}
 .panel { 
   display: flex; 
   flex-direction: column; 
@@ -611,11 +650,39 @@ async function gotoError(path: string) {
   overflow-x: hidden; 
   padding: 12px; 
   min-height: 0; /* 允许滚动 */
+  /* 自定义滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+.tab-content::-webkit-scrollbar {
+  width: 8px;
+}
+.tab-content::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.tab-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.tab-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 .validate-btn { width: 100%; padding: 8px; margin-bottom: 12px; background: var(--brand, #3b82f6); color: white; border: none; border-radius: 4px; cursor: pointer; }
 .validate-btn:hover { background: var(--brand-hover, #2563eb); }
-.validation-status { padding: 8px 12px; margin-bottom: 12px; background: var(--bg-app, #f5f5f5); border-radius: 4px; border: 1px solid var(--border, #e5e7eb); }
-.validation-status .status-text { font-size: 12px; color: var(--text-secondary, #666); }
+.validation-status { 
+  padding: 10px 12px; 
+  margin-bottom: 12px; 
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); 
+  border-radius: 6px; 
+  border: 1px solid #bae6fd;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.validation-status .status-text { 
+  font-size: 13px; 
+  color: #0369a1;
+  font-weight: 500;
+}
 .no-errors, .no-diff { padding: 24px; text-align: center; color: var(--text-secondary, #666); font-size: 13px; }
 .diff-list { display: flex; flex-direction: column; gap: 12px; }
 .diff-item { padding: 10px; border-radius: 4px; border-left: 3px solid; }

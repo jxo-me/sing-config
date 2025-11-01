@@ -7,6 +7,24 @@ export interface PreflightIssue {
   fix?: string;
 }
 
+// 获取当前语言设置
+function getCurrentLocale(): 'zh' | 'en' {
+  if (typeof localStorage !== 'undefined') {
+    const saved = localStorage.getItem('locale');
+    if (saved === 'zh' || saved === 'en') {
+      return saved;
+    }
+  }
+  // 默认根据浏览器语言判断
+  if (typeof navigator !== 'undefined') {
+    const lang = navigator.language.toLowerCase();
+    if (lang.startsWith('zh')) {
+      return 'zh';
+    }
+  }
+  return 'en';
+}
+
 export function checkPortConflicts(): PreflightIssue[] {
   const issues: PreflightIssue[] = [];
   const inbounds = (currentConfig.value.inbounds as Array<Record<string, unknown>>) || [];
@@ -22,13 +40,19 @@ export function checkPortConflicts(): PreflightIssue[] {
     }
   });
   
+  const locale = getCurrentLocale();
   portMap.forEach((items, port) => {
     if (items.length > 1) {
+      const tags = items.map(i => i.tag).join(', ');
       issues.push({
         level: 'error',
         path: `/inbounds/${items[0].idx}/listen_port`,
-        message: `端口 ${port} 被多个入站使用: ${items.map(i => i.tag).join(', ')}`,
-        fix: '修改其中一个入站的端口',
+        message: locale === 'zh' 
+          ? `端口 ${port} 被多个入站使用: ${tags}`
+          : `Port ${port} is used by multiple inbounds: ${tags}`,
+        fix: locale === 'zh' 
+          ? '修改其中一个入站的端口'
+          : 'Change the port of one of the inbounds',
       });
     }
   });
@@ -38,6 +62,7 @@ export function checkPortConflicts(): PreflightIssue[] {
 
 export function checkTagReferences(): PreflightIssue[] {
   const issues: PreflightIssue[] = [];
+  const locale = getCurrentLocale();
   const config = currentConfig.value;
   const outbounds = (config.outbounds as Array<Record<string, unknown>>) || [];
   const outboundTags = new Set(outbounds.map(o => o.tag as string).filter(Boolean));
@@ -54,8 +79,12 @@ export function checkTagReferences(): PreflightIssue[] {
         issues.push({
           level: 'error',
           path: `/route/rules/${idx}/outbound`,
-          message: `路由规则引用了不存在的出站标签: ${outboundTag}`,
-          fix: `创建标签为 "${outboundTag}" 的出站，或修改路由规则`,
+          message: locale === 'zh' 
+            ? `路由规则引用了不存在的出站标签: ${outboundTag}`
+            : `Route rule references non-existent outbound tag: ${outboundTag}`,
+          fix: locale === 'zh' 
+            ? `创建标签为 "${outboundTag}" 的出站，或修改路由规则`
+            : `Create an outbound with tag "${outboundTag}", or modify the route rule`,
         });
       }
     });
@@ -65,8 +94,12 @@ export function checkTagReferences(): PreflightIssue[] {
       issues.push({
         level: 'error',
         path: '/route/final',
-        message: `默认路由引用了不存在的出站标签: ${final}`,
-        fix: `创建标签为 "${final}" 的出站，或修改默认路由`,
+        message: locale === 'zh' 
+          ? `默认路由引用了不存在的出站标签: ${final}`
+          : `Default route references non-existent outbound tag: ${final}`,
+        fix: locale === 'zh' 
+          ? `创建标签为 "${final}" 的出站，或修改默认路由`
+          : `Create an outbound with tag "${final}", or modify the default route`,
       });
     }
   }
@@ -89,8 +122,12 @@ export function checkTagReferences(): PreflightIssue[] {
           issues.push({
             level: 'error',
             path: `/dns/rules/${idx}/server`,
-            message: `DNS 规则引用了不存在的 DNS 服务器标签: ${serverTag}`,
-            fix: `创建标签为 "${serverTag}" 的 DNS 服务器，或修改 DNS 规则`,
+            message: locale === 'zh' 
+              ? `DNS 规则引用了不存在的 DNS 服务器标签: ${serverTag}`
+              : `DNS rule references non-existent DNS server tag: ${serverTag}`,
+            fix: locale === 'zh' 
+              ? `创建标签为 "${serverTag}" 的 DNS 服务器，或修改 DNS 规则`
+              : `Create a DNS server with tag "${serverTag}", or modify the DNS rule`,
           });
         }
       });
@@ -106,8 +143,12 @@ export function checkTagReferences(): PreflightIssue[] {
           issues.push({
             level: 'error',
             path: `/outbounds/${idx}/outbounds`,
-            message: `${outbound.type} 出站引用了不存在的标签: ${tag}`,
-            fix: `创建标签为 "${tag}" 的出站，或从列表中移除`,
+            message: locale === 'zh' 
+              ? `${outbound.type} 出站引用了不存在的标签: ${tag}`
+              : `${outbound.type} outbound references non-existent tag: ${tag}`,
+            fix: locale === 'zh' 
+              ? `创建标签为 "${tag}" 的出站，或从列表中移除`
+              : `Create an outbound with tag "${tag}", or remove it from the list`,
           });
         }
       });
@@ -119,6 +160,7 @@ export function checkTagReferences(): PreflightIssue[] {
 
 export function checkRequiredFields(): PreflightIssue[] {
   const issues: PreflightIssue[] = [];
+  const locale = getCurrentLocale();
   
   // 检查出站必填字段
   const outbounds = (currentConfig.value.outbounds as Array<Record<string, unknown>>) || [];
@@ -128,8 +170,12 @@ export function checkRequiredFields(): PreflightIssue[] {
         issues.push({
           level: 'error',
           path: `/outbounds/${idx}/uuid`,
-          message: `${outbound.type} 出站缺少必填字段: uuid`,
-          fix: '添加 UUID 字段',
+          message: locale === 'zh' 
+            ? `${outbound.type} 出站缺少必填字段: uuid`
+            : `${outbound.type} outbound missing required field: uuid`,
+          fix: locale === 'zh' 
+            ? '添加 UUID 字段'
+            : 'Add UUID field',
         });
       }
     }
@@ -138,8 +184,12 @@ export function checkRequiredFields(): PreflightIssue[] {
         issues.push({
           level: 'error',
           path: `/outbounds/${idx}/password`,
-          message: 'Trojan 出站缺少必填字段: password',
-          fix: '添加密码字段',
+          message: locale === 'zh' 
+            ? 'Trojan 出站缺少必填字段: password'
+            : 'Trojan outbound missing required field: password',
+          fix: locale === 'zh' 
+            ? '添加密码字段'
+            : 'Add password field',
         });
       }
     }
@@ -148,16 +198,24 @@ export function checkRequiredFields(): PreflightIssue[] {
         issues.push({
           level: 'error',
           path: `/outbounds/${idx}/password`,
-          message: 'Shadowsocks 出站缺少必填字段: password',
-          fix: '添加密码字段',
+          message: locale === 'zh' 
+            ? 'Shadowsocks 出站缺少必填字段: password'
+            : 'Shadowsocks outbound missing required field: password',
+          fix: locale === 'zh' 
+            ? '添加密码字段'
+            : 'Add password field',
         });
       }
       if (!outbound.method) {
         issues.push({
           level: 'error',
           path: `/outbounds/${idx}/method`,
-          message: 'Shadowsocks 出站缺少必填字段: method',
-          fix: '选择加密方法',
+          message: locale === 'zh' 
+            ? 'Shadowsocks 出站缺少必填字段: method'
+            : 'Shadowsocks outbound missing required field: method',
+          fix: locale === 'zh' 
+            ? '选择加密方法'
+            : 'Select encryption method',
         });
       }
     }
@@ -172,8 +230,12 @@ export function checkRequiredFields(): PreflightIssue[] {
         issues.push({
           level: 'error',
           path: `/inbounds/${idx}/users`,
-          message: `${inbound.type} 入站需要至少一个用户`,
-          fix: '添加至少一个用户',
+          message: locale === 'zh' 
+            ? `${inbound.type} 入站需要至少一个用户`
+            : `${inbound.type} inbound requires at least one user`,
+          fix: locale === 'zh' 
+            ? '添加至少一个用户'
+            : 'Add at least one user',
         });
       }
     }
@@ -183,8 +245,12 @@ export function checkRequiredFields(): PreflightIssue[] {
         issues.push({
           level: 'error',
           path: `/inbounds/${idx}/users`,
-          message: 'Trojan 入站需要至少一个用户',
-          fix: '添加至少一个用户',
+          message: locale === 'zh' 
+            ? 'Trojan 入站需要至少一个用户'
+            : 'Trojan inbound requires at least one user',
+          fix: locale === 'zh' 
+            ? '添加至少一个用户'
+            : 'Add at least one user',
         });
       }
     }
@@ -195,6 +261,7 @@ export function checkRequiredFields(): PreflightIssue[] {
 
 export function checkTlsConfig(): PreflightIssue[] {
   const issues: PreflightIssue[] = [];
+  const locale = getCurrentLocale();
   const outbounds = (currentConfig.value.outbounds as Array<Record<string, unknown>>) || [];
   
   outbounds.forEach((outbound, idx) => {
@@ -203,8 +270,12 @@ export function checkTlsConfig(): PreflightIssue[] {
       issues.push({
         level: 'warning',
         path: `/outbounds/${idx}/tls`,
-        message: '使用 TLS 但服务器端口为 80，建议使用 443',
-        fix: '将 server_port 改为 443',
+        message: locale === 'zh' 
+          ? '使用 TLS 但服务器端口为 80，建议使用 443'
+          : 'TLS is enabled but server port is 80, recommend using 443',
+        fix: locale === 'zh' 
+          ? '将 server_port 改为 443'
+          : 'Change server_port to 443',
       });
     }
   });

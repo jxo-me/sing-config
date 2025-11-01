@@ -134,58 +134,125 @@ export function getCurrentLocale(): 'zh' | 'en' {
 // 本地化错误消息（改进以支持更多错误类型，保留详细信息）
 export function localizeErrorMessage(message: string): string {
   const locale = getCurrentLocale();
+  
+  // 处理 "Additional property X in Y" 格式（多语言）
+  const additionalPropMatch = message.match(/Additional\s+property\s+["']?([^"'\s.]+)["']?\s+in\s+([a-zA-Z0-9_$\.\[\]]+)/i);
+  if (additionalPropMatch) {
+    const propName = additionalPropMatch[1];
+    const path = additionalPropMatch[2];
+    if (message.toLowerCase().includes('is not allowed')) {
+      return locale === 'zh' 
+        ? `不允许有额外属性 "${propName}" (位于 ${path})`
+        : `Additional property "${propName}" in ${path} is not allowed`;
+    }
+    return locale === 'zh' 
+      ? `额外属性 "${propName}" (位于 ${path})`
+      : `Additional property "${propName}" in ${path}`;
+  }
+  
+  // 处理不带路径的 "Additional property X"
+  const additionalPropMatch2 = message.match(/Additional\s+property\s+["']?([^"'\s.]+)["']?/i);
+  if (additionalPropMatch2) {
+    const propName = additionalPropMatch2[1];
+    if (message.toLowerCase().includes('is not allowed')) {
+      return locale === 'zh' 
+        ? `不允许有额外属性 "${propName}"`
+        : `Additional property "${propName}" is not allowed`;
+    }
+    return locale === 'zh' 
+      ? `额外属性 "${propName}"`
+      : `Additional property "${propName}"`;
+  }
+  
+  // 处理 "Expected X but received Y" 格式（多语言）
+  const expectedMatch = message.match(/Expected\s+["'`]?([^"'`\s]+)["'`]?\s+but\s+received\s+["'`]?([^"'`\s]+)["'`]?/i);
+  if (expectedMatch) {
+    const typeNames: Record<string, { zh: string; en: string }> = {
+      string: { zh: '字符串', en: 'string' },
+      number: { zh: '数字', en: 'number' },
+      integer: { zh: '整数', en: 'integer' },
+      boolean: { zh: '布尔值', en: 'boolean' },
+      object: { zh: '对象', en: 'object' },
+      array: { zh: '数组', en: 'array' },
+      null: { zh: '空值', en: 'null' },
+    };
+    const expectedTypeInfo = typeNames[expectedMatch[1].toLowerCase()];
+    const receivedTypeInfo = typeNames[expectedMatch[2].toLowerCase()];
+    const expectedType = expectedTypeInfo 
+      ? (locale === 'zh' ? expectedTypeInfo.zh : expectedTypeInfo.en)
+      : expectedMatch[1];
+    const receivedType = receivedTypeInfo 
+      ? (locale === 'zh' ? receivedTypeInfo.zh : receivedTypeInfo.en)
+      : expectedMatch[2];
+    return locale === 'zh' 
+      ? `期望 ${expectedType}，但收到 ${receivedType}`
+      : `Expected ${expectedType}, but received ${receivedType}`;
+  }
+  
+  // 处理小写的 "expected type but received type" 格式
+  const expectedLowerMatch = message.match(/expected\s+["'`]?([^"'`\s]+)["'`]?\s+but\s+received\s+["'`]?([^"'`\s]+)["'`]?/i);
+  if (expectedLowerMatch) {
+    const typeNames: Record<string, { zh: string; en: string }> = {
+      string: { zh: '字符串', en: 'string' },
+      number: { zh: '数字', en: 'number' },
+      integer: { zh: '整数', en: 'integer' },
+      boolean: { zh: '布尔值', en: 'boolean' },
+      object: { zh: '对象', en: 'object' },
+      array: { zh: '数组', en: 'array' },
+      null: { zh: '空值', en: 'null' },
+    };
+    const expectedTypeInfo = typeNames[expectedLowerMatch[1].toLowerCase()];
+    const receivedTypeInfo = typeNames[expectedLowerMatch[2].toLowerCase()];
+    const expectedType = expectedTypeInfo 
+      ? (locale === 'zh' ? expectedTypeInfo.zh : expectedTypeInfo.en)
+      : expectedLowerMatch[1];
+    const receivedType = receivedTypeInfo 
+      ? (locale === 'zh' ? receivedTypeInfo.zh : receivedTypeInfo.en)
+      : expectedLowerMatch[2];
+    return locale === 'zh' 
+      ? `期望 ${expectedType}，但收到 ${receivedType}`
+      : `Expected ${expectedType}, but received ${receivedType}`;
+  }
+  
+  // 类型名称映射（多语言）
+  const typeNames: Record<string, { zh: string; en: string }> = {
+    string: { zh: '字符串', en: 'string' },
+    number: { zh: '数字', en: 'number' },
+    integer: { zh: '整数', en: 'integer' },
+    boolean: { zh: '布尔值', en: 'boolean' },
+    object: { zh: '对象', en: 'object' },
+    array: { zh: '数组', en: 'array' },
+    null: { zh: '空值', en: 'null' },
+  };
+  
+  // 处理单独的 "Expected" 消息（多语言）
+  if (message.toLowerCase().includes('expected') && !message.toLowerCase().includes('but received')) {
+    // 尝试从消息中提取期望的类型
+    const expectedTypeMatch = message.match(/Expected\s+["'`]([^"'`\s]+)["'`]/i) || 
+                               message.match(/expected\s+["'`]([^"'`\s]+)["'`]/i) ||
+                               message.match(/Expected\s+([a-zA-Z]+)/i) ||
+                               message.match(/expected\s+([a-zA-Z]+)/i);
+    
+    if (expectedTypeMatch) {
+      const expectedType = expectedTypeMatch[1];
+      const typeInfo = typeNames[expectedType.toLowerCase()];
+      const typeName = typeInfo 
+        ? (locale === 'zh' ? typeInfo.zh : typeInfo.en)
+        : expectedType;
+      return locale === 'zh' 
+        ? `期望 ${typeName}`
+        : `Expected ${typeName}`;
+    }
+    
+    // 如果只是 "Expected" 或 "expected"，返回通用消息
+    if (message.trim().toLowerCase() === 'expected' || message.trim().toLowerCase() === '期望') {
+      return locale === 'zh' 
+        ? '期望值不符合要求'
+        : 'Expected value does not meet requirements';
+    }
+  }
+  
   if (locale === 'zh') {
-    // 优先处理 "Additional property X in Y" 格式（最具体的格式，最先匹配）
-    const additionalPropMatch = message.match(/Additional\s+property\s+["']?([^"'\s.]+)["']?\s+in\s+([a-zA-Z0-9_$\.\[\]]+)/i);
-    if (additionalPropMatch) {
-      const propName = additionalPropMatch[1];
-      const path = additionalPropMatch[2];
-      // 检查是否有 "is not allowed" 后缀
-      if (message.toLowerCase().includes('is not allowed')) {
-        return `不允许有额外属性 "${propName}" (位于 ${path})`;
-      }
-      return `额外属性 "${propName}" (位于 ${path})`;
-    }
-    
-    // 处理不带路径的 "Additional property X"
-    const additionalPropMatch2 = message.match(/Additional\s+property\s+["']?([^"'\s.]+)["']?/i);
-    if (additionalPropMatch2) {
-      const propName = additionalPropMatch2[1];
-      if (message.toLowerCase().includes('is not allowed')) {
-        return `不允许有额外属性 "${propName}"`;
-      }
-      return `额外属性 "${propName}"`;
-    }
-    
-    // 在匹配通用关键词之前，先尝试提取 "Expected" 相关的完整信息
-    // 如果消息只包含 "Expected" 而没有完整信息，尝试提取类型
-    if (message.toLowerCase().includes('expected') && !message.toLowerCase().includes('but received')) {
-      // 尝试从消息中提取期望的类型
-      const expectedTypeMatch = message.match(/Expected\s+["'`]([^"'`\s]+)["'`]/i) || 
-                                 message.match(/expected\s+["'`]([^"'`\s]+)["'`]/i) ||
-                                 message.match(/Expected\s+([a-zA-Z]+)/i) ||
-                                 message.match(/expected\s+([a-zA-Z]+)/i);
-      
-      if (expectedTypeMatch) {
-        const expectedType = expectedTypeMatch[1];
-        const typeNames: Record<string, string> = {
-          string: '字符串',
-          number: '数字',
-          integer: '整数',
-          boolean: '布尔值',
-          object: '对象',
-          array: '数组',
-          null: '空值',
-        };
-        const typeName = typeNames[expectedType.toLowerCase()] || expectedType;
-        return `期望 ${typeName}`;
-      }
-      
-      // 如果只是 "Expected" 或 "expected"，返回通用消息
-      if (message.trim().toLowerCase() === 'expected' || message.trim().toLowerCase() === '期望') {
-        return '期望值不符合要求';
-      }
-    }
     
     // 按优先级排序（更具体的错误模式优先）
     const sortedKeys = Object.keys(errorMessageMap).sort((a, b) => b.length - a.length);
@@ -240,70 +307,78 @@ export function localizeErrorMessage(message: string): string {
       }
     }
     
-    // 匹配 "Expected `type1` but received `type2`" 格式
-    const expectedMatch = message.match(/Expected\s+["'`]?([^"'`\s]+)["'`]?\s+but\s+received\s+["'`]?([^"'`\s]+)["'`]?/i);
-    if (expectedMatch) {
-      const typeNames: Record<string, string> = {
-        string: '字符串',
-        number: '数字',
-        integer: '整数',
-        boolean: '布尔值',
-        object: '对象',
-        array: '数组',
-        null: '空值',
-      };
-      const expectedType = typeNames[expectedMatch[1].toLowerCase()] || expectedMatch[1];
-      const receivedType = typeNames[expectedMatch[2].toLowerCase()] || expectedMatch[2];
-      return `期望 ${expectedType}，但收到 ${receivedType}`;
-    }
-    
-    // 匹配 "expected type but received type" 格式（小写）
-    const expectedLowerMatch = message.match(/expected\s+["'`]?([^"'`\s]+)["'`]?\s+but\s+received\s+["'`]?([^"'`\s]+)["'`]?/i);
-    if (expectedLowerMatch) {
-      const typeNames: Record<string, string> = {
-        string: '字符串',
-        number: '数字',
-        integer: '整数',
-        boolean: '布尔值',
-        object: '对象',
-        array: '数组',
-        null: '空值',
-      };
-      const expectedType = typeNames[expectedLowerMatch[1].toLowerCase()] || expectedLowerMatch[1];
-      const receivedType = typeNames[expectedLowerMatch[2].toLowerCase()] || expectedLowerMatch[2];
-      return `期望 ${expectedType}，但收到 ${receivedType}`;
-    }
-    
     // 匹配 "should be type" 格式
     const shouldBeMatch = message.match(/should\s+be\s+["'`]?([^"'`\s,]+)["'`]?/i);
     if (shouldBeMatch) {
-      const typeNames: Record<string, string> = {
-        string: '字符串',
-        number: '数字',
-        integer: '整数',
-        boolean: '布尔值',
-        object: '对象',
-        array: '数组',
-        null: '空值',
-      };
-      const type = typeNames[shouldBeMatch[1].toLowerCase()] || shouldBeMatch[1];
-      return `应该是 ${type}`;
+      const typeInfo = typeNames[shouldBeMatch[1].toLowerCase()];
+      const type = typeInfo 
+        ? (locale === 'zh' ? typeInfo.zh : typeInfo.en)
+        : shouldBeMatch[1];
+      return locale === 'zh' 
+        ? `应该是 ${type}`
+        : `Should be ${type}`;
     }
     
     // 如果没有匹配到，尝试通用类型匹配
     const typeMatch = message.match(/must be (string|number|integer|boolean|object|array)/i);
     if (typeMatch) {
-      const typeNames: Record<string, string> = {
-        string: '字符串',
-        number: '数字',
-        integer: '整数',
-        boolean: '布尔值',
-        object: '对象',
-        array: '数组',
-      };
-      return `必须是 ${typeNames[typeMatch[1].toLowerCase()] || typeMatch[1]}`;
+      const typeInfo = typeNames[typeMatch[1].toLowerCase()];
+      const type = typeInfo 
+        ? (locale === 'zh' ? typeInfo.zh : typeInfo.en)
+        : typeMatch[1];
+      return locale === 'zh' 
+        ? `必须是 ${type}`
+        : `Must be ${type}`;
     }
   }
+  
+  // 英文环境：使用 errorMessageMap 进行翻译
+  if (locale === 'en') {
+    const sortedKeys = Object.keys(errorMessageMap).sort((a, b) => b.length - a.length);
+    
+    for (const key of sortedKeys) {
+      if (key.toLowerCase() === 'expected') {
+        continue;
+      }
+      
+      if (message.toLowerCase().includes(key.toLowerCase())) {
+        const translations = errorMessageMap[key];
+        
+        // 提取具体的值（常量值）
+        const constMatch = message.match(/constant\s+["']([^"']+)["']/i);
+        if (constMatch) {
+          return `${translations.en} "${constMatch[1]}"`;
+        }
+        
+        // 处理其他 property 相关消息
+        const propMatch = message.match(/property\s+["']([^"']+)["']/i);
+        if (propMatch && (key.includes('required') || key.includes('additional'))) {
+          return `${translations.en} "${propMatch[1]}"`;
+        }
+        
+        // 提取类型信息
+        const typeMatch = message.match(/type\s+["']?([^"'\s,]+)["']?/i);
+        if (typeMatch && key.includes('type')) {
+          const typeInfo = typeNames[typeMatch[1].toLowerCase()];
+          const typeName = typeInfo?.en || typeMatch[1];
+          return `${translations.en}: ${typeName}`;
+        }
+        
+        // 提取数值限制
+        const minMaxMatch = message.match(/(min|max)(?:imum|Length)?\s+(\d+)/i);
+        if (minMaxMatch) {
+          const limit = minMaxMatch[2];
+          const limitType = minMaxMatch[1].toLowerCase() === 'min' ? 'minimum' : 'maximum';
+          return `${translations.en}: ${limitType} ${limit}`;
+        }
+        
+        // 默认返回翻译
+        return translations.en;
+      }
+    }
+  }
+  
+  // 如果都没有匹配到，返回原消息
   return message;
 }
 
@@ -326,9 +401,21 @@ async function getSchema(): Promise<JsonSchema> {
 // 自定义错误格式化函数（支持多语言）
 function createFormatError(): (error: any) => string {
   return (error: any) => {
+    const locale = getCurrentLocale();
     // 优先从错误对象的数据中提取完整信息
     const errorData = error.data || {};
     const message = error.message || error.text || String(error);
+    
+    // 类型名称映射（多语言）
+    const typeNames: Record<string, { zh: string; en: string }> = {
+      string: { zh: '字符串', en: 'string' },
+      number: { zh: '数字', en: 'number' },
+      integer: { zh: '整数', en: 'integer' },
+      boolean: { zh: '布尔值', en: 'boolean' },
+      object: { zh: '对象', en: 'object' },
+      array: { zh: '数组', en: 'array' },
+      null: { zh: '空值', en: 'null' },
+    };
     
     // 如果有完整的错误数据，构建更详细的消息
     if (errorData.expected !== undefined || errorData.received !== undefined) {
@@ -339,66 +426,57 @@ function createFormatError(): (error: any) => string {
         // 处理数组类型的 expected（如 ["string", "number"]）
         let expectedStr: string;
         if (Array.isArray(expected)) {
-          expectedStr = expected.join(' 或 ');
+          expectedStr = locale === 'zh' 
+            ? expected.map(t => typeNames[t]?.zh || t).join(' 或 ')
+            : expected.map(t => typeNames[t]?.en || t).join(' or ');
         } else {
-          expectedStr = String(expected);
+          const expectedTypeInfo = typeNames[String(expected).toLowerCase()];
+          expectedStr = expectedTypeInfo 
+            ? (locale === 'zh' ? expectedTypeInfo.zh : expectedTypeInfo.en)
+            : String(expected);
         }
         
-        const typeNames: Record<string, string> = {
-          string: '字符串',
-          number: '数字',
-          integer: '整数',
-          boolean: '布尔值',
-          object: '对象',
-          array: '数组',
-          null: '空值',
-        };
+        const receivedTypeInfo = typeNames[String(received).toLowerCase()];
+        const receivedStr = receivedTypeInfo 
+          ? (locale === 'zh' ? receivedTypeInfo.zh : receivedTypeInfo.en)
+          : String(received);
         
-        const expectedType = typeNames[expectedStr.toLowerCase()] || expectedStr;
-        const receivedType = typeNames[String(received).toLowerCase()] || String(received);
-        
-        return `期望 ${expectedType}，但收到 ${receivedType}`;
+        return locale === 'zh' 
+          ? `期望 ${expectedStr}，但收到 ${receivedStr}`
+          : `Expected ${expectedStr}, but received ${receivedStr}`;
       } else if (expected) {
         let expectedStr: string;
         if (Array.isArray(expected)) {
-          expectedStr = expected.join(' 或 ');
+          expectedStr = locale === 'zh' 
+            ? expected.map(t => typeNames[t]?.zh || t).join(' 或 ')
+            : expected.map(t => typeNames[t]?.en || t).join(' or ');
         } else {
-          expectedStr = String(expected);
+          const expectedTypeInfo = typeNames[String(expected).toLowerCase()];
+          expectedStr = expectedTypeInfo 
+            ? (locale === 'zh' ? expectedTypeInfo.zh : expectedTypeInfo.en)
+            : String(expected);
         }
         
-        const typeNames: Record<string, string> = {
-          string: '字符串',
-          number: '数字',
-          integer: '整数',
-          boolean: '布尔值',
-          object: '对象',
-          array: '数组',
-          null: '空值',
-        };
-        
-        const expectedType = typeNames[expectedStr.toLowerCase()] || expectedStr;
-        return `期望 ${expectedType}`;
+        return locale === 'zh' 
+          ? `期望 ${expectedStr}`
+          : `Expected ${expectedStr}`;
       }
     }
     
     // 如果消息中包含 "Expected" 但格式不完整，尝试从消息中提取
-    if (message.includes('Expected') && !message.includes('but received') && !message.includes('but received')) {
+    if (message.includes('Expected') && !message.includes('but received')) {
       // 尝试匹配 "Expected `type`" 格式
       const expectedOnlyMatch = message.match(/Expected\s+["'`]([^"'`\s]+)["'`]/i) || 
                                 message.match(/Expected\s+([a-zA-Z]+)/i);
       if (expectedOnlyMatch) {
         const expectedType = expectedOnlyMatch[1];
-        const typeNames: Record<string, string> = {
-          string: '字符串',
-          number: '数字',
-          integer: '整数',
-          boolean: '布尔值',
-          object: '对象',
-          array: '数组',
-          null: '空值',
-        };
-        const typeName = typeNames[expectedType.toLowerCase()] || expectedType;
-        return `期望 ${typeName}`;
+        const typeInfo = typeNames[expectedType.toLowerCase()];
+        const typeName = typeInfo 
+          ? (locale === 'zh' ? typeInfo.zh : typeInfo.en)
+          : expectedType;
+        return locale === 'zh' 
+          ? `期望 ${typeName}`
+          : `Expected ${typeName}`;
       }
     }
     
@@ -561,7 +639,9 @@ function createWrappedLinter(options: JSONValidationOptions) {
           
           return {
             path: ve.path,
-            message: ve.message,
+            // 存储原始消息（英文），在显示时动态本地化
+            // 这样可以确保语言切换时消息能正确更新
+            message: ve.originalMessage || ve.message,
             line,
             from,
             to,
