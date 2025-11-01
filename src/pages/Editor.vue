@@ -215,18 +215,45 @@ function handleKeyboardShortcuts(event: KeyboardEvent) {
     return;
   }
   
+  // Ctrl+Shift+F / Cmd+Shift+F: 格式化（JSON 模式）
+  if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'f' || event.key === 'F')) {
+    event.preventDefault();
+    handleFormat();
+    return;
+  }
+  
 }
 
 let formatTextHandler: EventListener | null = null;
 
 // 格式化功能
-function handleFormat() {
-  const formatted = toPrettyJson();
-  loadFromText(formatted);
-  // 确保 text.value 同步更新
-  nextTick(() => {
+async function handleFormat() {
+  try {
+    // 先尝试解析当前的文本（可能包含无效 JSON）
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(text.value || '{}');
+    } catch (parseErr) {
+      // 如果当前文本无效，尝试使用 currentConfig（如果存在）
+      console.warn('Current text is invalid JSON, using currentConfig:', parseErr);
+      parsed = currentConfig.value || {};
+    }
+    
+    // 格式化 JSON（使用 2 空格缩进）
+    const formatted = JSON.stringify(parsed, null, 2);
+    
+    // 更新文本和配置
     text.value = formatted;
-  });
+    await loadFromText(formatted);
+    
+    // 确保编辑器内容同步
+    await nextTick();
+    if (text.value !== formatted) {
+      text.value = formatted;
+    }
+  } catch (err) {
+    console.error('Failed to format JSON:', err);
+  }
 }
 
 onMounted(async () => {
