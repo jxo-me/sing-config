@@ -350,6 +350,43 @@ defineExpose({
   border-left: none;
 }
 
+/* CodeMirror 诊断样式 - 移除左侧红色标记 */
+:deep(.cm-diagnostic-error) {
+  background-color: transparent !important;
+  border-left: none !important;
+}
+
+:deep(.cm-diagnostic-warning) {
+  background-color: transparent !important;
+  border-left: none !important;
+}
+
+/* 诊断列表项样式 - 多种选择器确保覆盖 */
+:deep(li.cm-diagnostic.cm-diagnostic-error),
+:deep(.cm-diagnostic.cm-diagnostic-error),
+:deep(ul.cm-tooltip-lint li.cm-diagnostic.cm-diagnostic-error),
+:deep(ul.cm-tooltip-lint .cm-diagnostic.cm-diagnostic-error),
+:deep(ul.cm-tooltip-lint-section li.cm-diagnostic.cm-diagnostic-error) {
+  background-color: transparent !important;
+  border-left: none !important;
+  padding-left: 0 !important;
+  /* 确保覆盖所有可能的边框样式 */
+  border-left-width: 0 !important;
+  border-left-style: none !important;
+  border-left-color: transparent !important;
+}
+
+:deep(li.cm-diagnostic.cm-diagnostic-warning),
+:deep(.cm-diagnostic.cm-diagnostic-warning),
+:deep(ul.cm-tooltip-lint li.cm-diagnostic.cm-diagnostic-warning) {
+  background-color: transparent !important;
+  border-left: none !important;
+  padding-left: 0 !important;
+  border-left-width: 0 !important;
+  border-left-style: none !important;
+  border-left-color: transparent !important;
+}
+
 /* 错误提示气泡样式（与右侧栏保持一致） */
 :deep(.cm-tooltip-lint) {
   background: #fef2f2 !important;
