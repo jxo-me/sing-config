@@ -722,9 +722,27 @@ async function gotoError(path: string) {
               </div>
               
               <div v-show="activeTab === 'diff'" class="tab-content">
+                <div v-if="configDiff.length > 0" class="diff-summary">
+                  <div class="diff-stats">
+                    <span class="stat-item added">
+                      <strong>{{ diffStats.added }}</strong> {{ currentLocale === 'zh' ? '新增' : 'Added' }}
+                    </span>
+                    <span class="stat-item removed">
+                      <strong>{{ diffStats.removed }}</strong> {{ currentLocale === 'zh' ? '删除' : 'Removed' }}
+                    </span>
+                    <span class="stat-item modified">
+                      <strong>{{ diffStats.modified }}</strong> {{ currentLocale === 'zh' ? '修改' : 'Modified' }}
+                    </span>
+                  </div>
+                </div>
                 <div class="diff-list">
-                  <div v-for="(diff, idx) in configDiff.slice(0, 50)" :key="idx" class="diff-item" :class="diff.type">
-                    <div class="diff-path">{{ diff.path }}</div>
+                  <div v-for="(diff, idx) in configDiff.slice(0, 50)" :key="idx" class="diff-item" :class="[diff.type, diff.severity || 'minor']">
+                    <div class="diff-header">
+                      <div class="diff-path">{{ diff.path }}</div>
+                      <span v-if="diff.severity === 'major'" class="diff-badge major">
+                        {{ currentLocale === 'zh' ? '重要' : 'Major' }}
+                      </span>
+                    </div>
                     <div class="diff-values">
                       <div v-if="diff.type === 'modified' || diff.type === 'removed'" class="diff-old">
                         <span class="diff-label">{{ currentLocale === 'zh' ? '旧值' : 'Old' }}:</span>
