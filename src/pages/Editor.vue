@@ -23,7 +23,7 @@ import { useResponsive } from '../composables/useResponsive';
 const { t, currentLocale, setLocale } = useI18n();
 
 // 响应式布局检测
-const { isMobile } = useResponsive();
+const { isMobile, isLandscape } = useResponsive();
 
 // 监听语言变化，触发错误消息重新本地化
 watch(currentLocale, async () => {
@@ -648,7 +648,10 @@ async function gotoError(path: string) {
 </script>
 
 <template>
-  <div class="editor-layout" :class="{ 'mobile-layout': isMobile }">
+  <div class="editor-layout" :class="{ 
+    'mobile-layout': isMobile,
+    'form-mode-portrait': isMobile && mode === 'form' && !isLandscape
+  }">
     <Topbar ref="topbarRef" />
     <div class="mode-switcher">
       <button :class="{ active: mode === 'json' }" @click="mode = 'json'">{{ t.common.json }}</button>
@@ -822,7 +825,10 @@ async function gotoError(path: string) {
     </div>
     
     <!-- Mobile: 底部标签栏 -->
-    <div v-if="isMobile" class="mobile-tabs">
+    <!-- 竖屏模式 + 表单模式：隐藏标签栏 -->
+    <!-- 竖屏模式 + JSON 模式：显示标签栏 -->
+    <!-- 横屏模式：显示标签栏 -->
+    <div v-if="isMobile && (mode === 'json' || isLandscape)" class="mobile-tabs">
       <button :class="{ active: activeTab === 'errors' }" @click="showMobilePanel = true; activeTab = 'errors'">
         {{ t.common.errors }} ({{ currentErrorCount }})
       </button>
@@ -1267,6 +1273,12 @@ async function gotoError(path: string) {
   .mobile-layout .left {
     width: 100%;
     padding: 4px;
+    padding-bottom: 60px; /* 默认为底部标签栏预留空间 */
+  }
+  
+  /* 竖屏表单模式：隐藏底部标签栏，移除额外 padding */
+  .form-mode-portrait .left {
+    padding-bottom: 4px;
   }
   
   /* 移动端抽屉按钮 */
