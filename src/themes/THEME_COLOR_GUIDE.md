@@ -41,20 +41,12 @@ Material Design 3 定义了多个表面层级，用于创建视觉深度。
 
 文字颜色需要与背景有足够的对比度，确保可读性。
 
-#### Light Theme 文字色
+#### 文字色
 ```css
 --text-primary: #1C1B1F   /* On surface - 主要文字（对比度 15.8:1） */
 --text-secondary: #49454F /* On surface variant - 次要文字（对比度 7.2:1） */
 --text-disabled: #CAC4D0  /* On surface disabled - 禁用文字（对比度 2.9:1） */
 --text-on-brand: #FFFFFF  /* On primary - 主色上的文字 */
-```
-
-#### Dark Theme 文字色
-```css
---text-primary: #E6E1E5   /* On surface - 主要文字（对比度 15.8:1） */
---text-secondary: #CAC4D0 /* On surface variant - 次要文字（对比度 7.2:1） */
---text-disabled: #938F99  /* On surface disabled - 禁用文字（对比度 2.9:1） */
---text-on-brand: #381E72  /* On primary - 主色上的文字（暗色文字在亮色背景上） */
 ```
 
 ### 4. Semantic Colors (语义颜色)
