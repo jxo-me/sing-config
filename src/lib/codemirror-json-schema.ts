@@ -512,7 +512,12 @@ function createWrappedLinter(options: JSONValidationOptions) {
         diag.message = formatError(originalError);
       } else {
         // 否则使用本地化现有消息
+        const oldMsg = diag.message;
         diag.message = localizeErrorMessage(diag.message);
+        // 临时调试：查看本地化是否生效
+        if (oldMsg !== diag.message) {
+          console.log('[Bubble i18n]', oldMsg.substring(0, 60), '→', diag.message.substring(0, 60));
+        }
       }
     }
     
