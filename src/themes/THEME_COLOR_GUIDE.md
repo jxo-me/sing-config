@@ -11,20 +11,13 @@
 - **文字**: 深色系 (#1C1B1F)
 - **风格**: 清爽、现代、专业、充满活力
 
-### Material Dark Theme (深色主题) - Hostinger 风格
-**适用场景**: 夜间使用，低光环境
-- **主色调**: Hostinger Purple Light (#B39DDB) - 柔和的亮紫色，适配深色背景
-- **背景**: 深色系 (#1C1B1F)
-- **文字**: 浅色系 (#E6E1E5)
-- **风格**: 护眼、舒适、现代、优雅
-
 ## 颜色系统详解
 
 ### 1. Primary Colors (主色系统)
 
 Material Design 3 使用 **tonal palettes**（色调调色板），每个颜色有从 0-100 的色调值。
 
-#### Light Theme 主色 (Hostinger 风格)
+#### 主色 (Hostinger 风格)
 ```css
 --brand: #673AB7        /* Hostinger Purple - 鲜艳的紫色主色 */
 --brand-hover: #7B68EE  /* Lighter purple - 悬停状态 */
@@ -32,32 +25,16 @@ Material Design 3 使用 **tonal palettes**（色调调色板），每个颜色�
 --brand-dark: #512DA8   /* Dark purple variant - 深色变体 */
 ```
 
-#### Dark Theme 主色 (Hostinger 风格)
-```css
---brand: #B39DDB        /* Hostinger Purple Light - 深色主题下的亮紫色 */
---brand-hover: #CE93D8  /* Lighter purple - 悬停状态 */
---brand-light: #F3E5F5  /* Light purple variant - 最浅色变体 */
---brand-dark: #673AB7   /* Hostinger Purple - 深色变体 */
-```
-
 ### 2. Surface Colors (表面色系统)
 
 Material Design 3 定义了多个表面层级，用于创建视觉深度。
 
-#### Light Theme 表面色
+#### 表面色
 ```css
 --bg-app: #FFFBFE       /* Surface container lowest - 应用背景 */
 --bg-panel: #FFFFFF     /* Surface - 面板背景 */
 --bg-hover: #F7F2FA     /* Surface container - 悬停背景 */
 --bg-active: #ECE6F0    /* Surface container high - 激活背景 */
-```
-
-#### Dark Theme 表面色
-```css
---bg-app: #1C1B1F       /* Surface dim - 应用背景 */
---bg-panel: #211F26     /* Surface - 面板背景 */
---bg-hover: #2A2830     /* Surface container - 悬停背景 */
---bg-active: #38343E    /* Surface container high - 激活背景 */
 ```
 
 ### 3. Text Colors (文字颜色系统)
@@ -85,20 +62,16 @@ Material Design 3 定义了多个表面层级，用于创建视觉深度。
 用于表达状态和含义的颜色。
 
 #### Error (错误)
-- **Light**: #BA1A1A (错误色) + #F9DEDC (错误容器)
-- **Dark**: #F2B8B5 (错误色) + #8C1D18 (错误容器)
+- #BA1A1A (错误色) + #F9DEDC (错误容器)
 
 #### Success (成功)
-- **Light**: #006E1C (成功色) + #9CF683 (成功容器)
-- **Dark**: #5EE37F (成功色) + #005E1A (成功容器)
+- #006E1C (成功色) + #9CF683 (成功容器)
 
 #### Warning (警告)
-- **Light**: #7C5800 (警告色) + #FFE08A (警告容器)
-- **Dark**: #FFD54F (警告色) + #5C4000 (警告容器)
+- #7C5800 (警告色) + #FFE08A (警告容器)
 
 #### Info (信息)
-- **Light**: #0057D2 (信息色) + #DAE2FF (信息容器)
-- **Dark**: #90CAF9 (信息色) + #003258 (信息容器)
+- #0057D2 (信息色) + #DAE2FF (信息容器)
 
 ### 5. State Colors (状态颜色)
 
@@ -180,21 +153,18 @@ Material Design 3 定义了多个表面层级，用于创建视觉深度。
 }
 ```
 
-## 主题切换
+## 主题初始化
 
-主题切换通过 `data-theme` 属性实现：
+主题在应用启动时自动初始化，固定使用浅色主题：
 
 ```typescript
-import { setTheme, getCurrentTheme } from '@/lib/theme';
+import { initTheme } from '@/lib/theme';
 
-// 切换到浅色主题
-setTheme('material-light');
-
-// 切换到深色主题
-setTheme('material-dark');
+// 在 main.ts 中自动调用
+initTheme();
 ```
 
-主题会自动保存到 `localStorage`，并在应用重启后恢复。
+主题会设置 `data-theme="material-light"` 属性到根元素。
 
 ## 参考资源
 

@@ -9,7 +9,6 @@ import Editor from './pages/Editor.vue';
 <!-- 引入 Material Design 3 主题 -->
 <style>
 @import './themes/material-light.css';
-@import './themes/material-dark.css';
 </style>
 
 <style>
