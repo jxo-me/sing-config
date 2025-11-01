@@ -1,6 +1,7 @@
 import { Draft07 } from 'json-schema-library';
 import { loadSchema } from './schema';
 import type { JsonError } from 'json-schema-library';
+import { createFormatError, getCurrentLocale } from './codemirror-json-schema';
 
 let validatorInstance: Draft07 | null = null;
 
@@ -73,9 +74,12 @@ function deduplicateErrors(errors: Array<{ path: string; message: string; keywor
       } else {
         // 多个错误时，合并消息
         const messages = topErrors.map(e => e.message).join('; ');
+        const locale = getCurrentLocale();
         result.push({ 
           path: path, 
-          message: `多项错误: ${messages}${otherErrors.length > 3 ? ` (还有 ${otherErrors.length - 3} 个错误)` : ''}` 
+          message: locale === 'zh'
+            ? `多项错误: ${messages}${otherErrors.length > 3 ? ` (还有 ${otherErrors.length - 3} 个错误)` : ''}`
+            : `Multiple errors: ${messages}${otherErrors.length > 3 ? ` (${otherErrors.length - 3} more)` : ''}`
         });
       }
     } else if (oneOfErrors.length > 0) {
@@ -91,9 +95,12 @@ function deduplicateErrors(errors: Array<{ path: string; message: string; keywor
         result.push({ path: typeErrors[0].path, message: typeErrors[0].message });
       } else {
         // 否则显示一个汇总消息
+        const locale = getCurrentLocale();
         result.push({ 
           path: path, 
-          message: `不符合任何有效的配置选项。请检查 type 字段和必需的属性。` 
+          message: locale === 'zh'
+            ? `不符合任何有效的配置选项。请检查 type 字段和必需的属性。`
+            : `Does not match any valid configuration options. Please check the type field and required properties.`
         });
       }
     }
@@ -105,7 +112,9 @@ function deduplicateErrors(errors: Array<{ path: string; message: string; keywor
 function formatError(err: JsonError): { path: string; message: string; keyword: string } {
   // JsonError 结构：{ type, name, code, message, data?: { pointer, ... } }
   const path = (err.data?.pointer as string) || '';
-  const message = err.message || 'Invalid';
+  // 使用统一的错误格式化函数，支持多语言
+  const formatErrorFn = createFormatError();
+  const message = formatErrorFn(err);
   // 使用 code 或 name 作为 keyword（例如 'required', 'type', 'enum' 等）
   const keyword = err.code || err.name || err.type || '';
   

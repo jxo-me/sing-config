@@ -410,7 +410,7 @@ async function getSchema(): Promise<JsonSchema> {
 }
 
 // 自定义错误格式化函数（支持多语言）
-function createFormatError(): (error: any) => string {
+export function createFormatError(): (error: any) => string {
   return (error: any) => {
     const locale = getCurrentLocale();
     // 优先从错误对象的数据中提取完整信息
