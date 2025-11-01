@@ -6,7 +6,7 @@ import { json } from '@codemirror/lang-json';
 import { foldGutter } from '@codemirror/language';
 import { bracketMatching } from '@codemirror/language';
 import { highlightSelectionMatches } from '@codemirror/search';
-import { history, defaultKeymap, indentWithTab } from '@codemirror/commands';
+import { history, defaultKeymap, indentWithTab, undo, redo } from '@codemirror/commands';
 import { indentOnInput, indentUnit } from '@codemirror/language';
 import { keymap } from '@codemirror/view';
 import { closeBrackets } from '@codemirror/autocomplete';
@@ -248,6 +248,18 @@ defineExpose({
       const scrollDOM = editor.scrollDOM;
       scrollDOM.scrollTop = scrollTop;
       scrollDOM.scrollLeft = scrollLeft;
+    }
+  },
+  undo: () => {
+    if (editor) {
+      undo(editor);
+      editor.focus();
+    }
+  },
+  redo: () => {
+    if (editor) {
+      redo(editor);
+      editor.focus();
     }
   },
 });

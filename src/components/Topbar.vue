@@ -116,6 +116,9 @@ defineExpose({
   onSave,
   onSaveAs,
   onOpen,
+  onLoadExample,
+  showWizard: () => { showWizard.value = true; },
+  showTemplates: () => { showTemplates.value = true; },
 });
 </script>
 

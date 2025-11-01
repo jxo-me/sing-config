@@ -16,8 +16,9 @@ import { currentConfig, errorCount, lastValidation, toPrettyJson, loadFromText, 
 import { useI18n } from '../i18n';
 import { runPreflightCheck, type PreflightIssue } from '../lib/preflight';
 import { localizeErrorMessage, editorErrors, editorValidationState } from '../lib/codemirror-json-schema';
+import { setupMenuHandlers, setTopbarRef, setEditorRef } from '../lib/menu-handler';
 
-const { t, currentLocale } = useI18n();
+const { t, currentLocale, setLocale } = useI18n();
 
 // 监听语言变化，触发错误消息重新本地化
 watch(currentLocale, async () => {
@@ -58,6 +59,8 @@ const jsonEditorRef = ref<{
   gotoLine: (line: number, column?: number) => void;
   getScrollPosition: () => { scrollTop: number; scrollLeft: number };
   setScrollPosition: (scrollTop: number, scrollLeft?: number) => void;
+  undo?: () => void;
+  redo?: () => void;
 } | null>(null);
 const formContainerRef = ref<HTMLDivElement | null>(null);
 
@@ -152,6 +155,19 @@ function getIssueLevelClass(level: string): string {
 
 
 function handleKeyboardShortcuts(event: KeyboardEvent) {
+  // Ctrl+Q / Cmd+Q: 退出应用（Windows 上的备用处理）
+  if ((event.ctrlKey || event.metaKey) && event.key === 'q' || event.key === 'Q') {
+    event.preventDefault();
+    // 通过 Tauri 命令退出应用
+    import('@tauri-apps/api/core').then(({ invoke }) => {
+      invoke('exit_app');
+    }).catch(() => {
+      // 如果命令不存在，尝试直接调用 window.close
+      window.close();
+    });
+    return;
+  }
+  
   // Ctrl+S / Cmd+S: 保存
   if ((event.ctrlKey || event.metaKey) && event.key === 's') {
     event.preventDefault();
@@ -183,7 +199,17 @@ function handleKeyboardShortcuts(event: KeyboardEvent) {
 
 let formatTextHandler: EventListener | null = null;
 
-onMounted(() => {
+// 格式化功能
+function handleFormat() {
+  const formatted = toPrettyJson();
+  loadFromText(formatted);
+  // 确保 text.value 同步更新
+  nextTick(() => {
+    text.value = formatted;
+  });
+}
+
+onMounted(async () => {
   window.addEventListener('keydown', handleKeyboardShortcuts);
   
   // 监听格式化/压缩事件
@@ -194,6 +220,42 @@ onMounted(() => {
     }
   }) as EventListener;
   window.addEventListener('update-json-text', formatTextHandler);
+  
+  // 监听菜单触发的格式化事件
+  window.addEventListener('format-json', handleFormat as EventListener);
+  
+  // 监听菜单触发的语言切换事件
+  window.addEventListener('change-locale', ((event: Event) => {
+    const customEvent = event as CustomEvent<'zh' | 'en'>;
+    if (customEvent.detail) {
+      setLocale(customEvent.detail);
+    }
+  }) as EventListener);
+  
+  // 初始化菜单事件处理器
+  await setupMenuHandlers();
+  
+  // 设置 Topbar 和 Editor 引用
+  await nextTick();
+  setTopbarRef(topbarRef.value);
+  
+  // 等待编辑器完全初始化后再设置引用
+  await nextTick();
+  setEditorRef({
+    mode: mode.value,
+    setMode: (m: 'form' | 'json') => {
+      mode.value = m;
+    },
+    runPreflight: async () => {
+      preflightIssues.value = await runPreflightCheck();
+      activeTab.value = 'preflight';
+    },
+    runValidation: async () => {
+      runValidation();
+      activeTab.value = 'errors';
+    },
+    jsonEditor: jsonEditorRef.value
+  });
 });
 
 onBeforeUnmount(() => {
@@ -201,6 +263,7 @@ onBeforeUnmount(() => {
   if (formatTextHandler) {
     window.removeEventListener('update-json-text', formatTextHandler);
   }
+  window.removeEventListener('format-json', handleFormat);
 });
 
 // 保存当前模式的滚动位置
