@@ -75,7 +75,15 @@ export function checkTagReferences(): PreflightIssue[] {
   if (config.dns) {
     const dnsRules = ((config.dns as Record<string, unknown>).rules as Array<Record<string, unknown>>) || [];
     dnsRules.forEach((rule, idx) => {
-      const servers = (rule.server as string[]) || [];
+      const serverField = rule.server;
+      // 处理 server 字段可能是数组或单个字符串的情况
+      let servers: string[] = [];
+      if (Array.isArray(serverField)) {
+        servers = serverField.filter((s): s is string => typeof s === 'string');
+      } else if (typeof serverField === 'string') {
+        servers = [serverField];
+      }
+      
       servers.forEach((serverTag) => {
         if (serverTag && !dnsServerTags.has(serverTag)) {
           issues.push({

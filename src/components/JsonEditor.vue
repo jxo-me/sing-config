@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { EditorView } from '@codemirror/view';
-import { EditorState, Extension } from '@codemirror/state';
+import { EditorState, Extension, StateEffect } from '@codemirror/state';
 import { json } from '@codemirror/lang-json';
 import { lineNumbers } from '@codemirror/view';
 import { foldGutter } from '@codemirror/language';
@@ -13,8 +13,9 @@ import { keymap } from '@codemirror/view';
 import { closeBrackets } from '@codemirror/autocomplete';
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
-import { jsonSchema } from '../lib/codemirror-json-schema';
+import { jsonSchema, jsonSchemaSync } from '../lib/codemirror-json-schema';
 import { contextMenu } from '../lib/codemirror-context-menu';
+import { jsonSchemaAutocompleteExtension } from '../lib/json-schema-autocomplete';
 import { useI18n } from '../i18n';
 
 const { currentLocale } = useI18n();
@@ -65,8 +66,8 @@ const jsonHighlightStyle = HighlightStyle.define([
 onMounted(async () => {
   if (!container.value) return;
 
-  // 构建扩展列表
-  const extensions: Extension[] = [
+  // 先加载基础扩展
+  const baseExtensions: Extension[] = [
     lineNumbers(),
     foldGutter(),
     bracketMatching(),
@@ -77,7 +78,8 @@ onMounted(async () => {
     highlightSelectionMatches(),
     json(), // JSON 语言支持（包含语法高亮）
     syntaxHighlighting(jsonHighlightStyle), // 应用语法高亮样式
-    jsonSchema(), // JSON Schema 验证
+    jsonSchemaSync(), // JSON Schema 验证（占位，后续更新）
+    jsonSchemaAutocompleteExtension(), // JSON Schema 自动补全
     contextMenu(), // 自定义多语言右键菜单
     keymap.of([
       indentWithTab, // Tab 键缩进，Shift+Tab 取消缩进
@@ -113,9 +115,16 @@ onMounted(async () => {
   editor = new EditorView({
     state: EditorState.create({
       doc: props.modelValue ?? '',
-      extensions,
+      extensions: baseExtensions,
     }),
     parent: container.value,
+  });
+
+  // 异步加载 schema 并更新扩展
+  const schemaExtensions = await jsonSchema();
+  // 使用 StateEffect.appendConfig 来添加新扩展
+  editor.dispatch({
+    effects: StateEffect.appendConfig.of(schemaExtensions),
   });
 
   // 确保编辑器在容器大小变化时自动调整

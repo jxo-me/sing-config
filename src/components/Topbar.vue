@@ -23,7 +23,7 @@ async function onOpen() {
 
 async function onLoadExample() {
   try {
-    const resp = await fetch('/config.full.example.json', { cache: 'no-store' });
+    const resp = await fetch('/config.full.json', { cache: 'no-store' });
     if (!resp.ok) throw new Error(String(resp.status));
     const text = await resp.text();
     await loadFromText(text);
@@ -175,6 +175,7 @@ defineExpose({
   padding: 8px 16px;
   border-bottom: 1px solid var(--border, #e5e7eb);
   background: var(--bg-panel, #fff);
+  flex-shrink: 0; /* Topbar 不收缩 */
 }
 .topbar-left {
   display: flex;

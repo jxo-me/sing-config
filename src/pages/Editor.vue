@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import Topbar from '../components/Topbar.vue';
 import JsonEditor from '../components/JsonEditor.vue';
 import DnsForm from '../components/forms/DnsForm.vue';
@@ -15,7 +15,7 @@ import ExperimentalForm from '../components/forms/ExperimentalForm.vue';
 import { currentConfig, errorCount, lastValidation, toPrettyJson, loadFromText, runValidation, configDiff, isDirty } from '../stores/config';
 import { useI18n } from '../i18n';
 import { runPreflightCheck, type PreflightIssue } from '../lib/preflight';
-import { localizeErrorMessage } from '../lib/codemirror-json-schema';
+import { localizeErrorMessage, editorErrors, editorValidationState } from '../lib/codemirror-json-schema';
 
 const { t, currentLocale } = useI18n();
 
@@ -73,9 +73,35 @@ async function onInput(val: string) {
   }, 300);
 }
 
+// 校验函数：在 JSON 模式下使用编辑器错误，表单模式下使用独立校验
 async function validateNow() {
-  await runValidation();
+  if (mode.value === 'json') {
+    // JSON 模式下，编辑器已经实时校验，这里只需要刷新显示
+    // editorErrors 会由编辑器 linter 自动更新
+    return;
+  } else {
+    // 表单模式下，需要独立校验
+    await runValidation();
+  }
 }
+
+// 计算当前显示的错误（JSON 模式用编辑器错误，表单模式用 lastValidation）
+const displayedErrors = computed(() => {
+  if (mode.value === 'json') {
+    return editorErrors.value;
+  } else {
+    return lastValidation.value.errors;
+  }
+});
+
+// 计算当前错误数量
+const currentErrorCount = computed(() => {
+  if (mode.value === 'json') {
+    return editorValidationState.value.errorCount;
+  } else {
+    return errorCount.value;
+  }
+});
 
 async function runPreflight() {
   preflightIssues.value = await runPreflightCheck();
@@ -188,70 +214,155 @@ watch(activeForm, (_newForm, oldForm) => {
   }
 });
 
-function gotoError(path: string) {
-  if (!jsonEditorRef.value || !path) return;
+async function gotoError(path: string) {
+  if (!path) return;
+  
   // 保存表单模式的滚动位置
-  if (mode.value === 'form') {
+  const wasFormMode = mode.value === 'form';
+  if (wasFormMode) {
     saveScrollPosition('form');
   }
-  mode.value = 'json'; // 切换到 JSON 模式
   
+  // 切换到 JSON 模式
+  mode.value = 'json';
+  
+  // 等待模式切换和编辑器渲染完成
+  await nextTick();
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  if (!jsonEditorRef.value) {
+    console.warn('JsonEditor ref is not available');
+    return;
+  }
+  
+  // 策略1：尝试从 editorErrors 中查找匹配的错误，使用存储的位置信息（最准确）
+  const matchingError = editorErrors.value.find(e => e.path === path);
+  
+  if (matchingError) {
+    // 优先使用精确的位置信息（from/to）
+    if (matchingError.from !== undefined) {
+      try {
+        // 计算行号
+        const source = text.value;
+        const beforePos = source.substring(0, matchingError.from);
+        const line = beforePos.split('\n').length;
+        
+        // 如果可能，也计算列号（用于更精确的定位）
+        const lastLineStart = beforePos.lastIndexOf('\n') + 1;
+        const column = beforePos.length - lastLineStart;
+        
+        jsonEditorRef.value.gotoLine(line, column > 0 ? column : undefined);
+        return;
+      } catch (e) {
+        console.warn('Failed to use from position:', e);
+      }
+    }
+    
+    // 其次使用存储的行号
+    if (matchingError.line) {
+      jsonEditorRef.value.gotoLine(matchingError.line);
+      return;
+    }
+  }
+  
+  // 策略3：使用路径搜索（原有逻辑，作为后备）
   try {
-    const parsed = JSON.parse(text.value);
+    const source = text.value;
+    // 验证 JSON 是否有效
+    JSON.parse(source);
     const parts = path.split('/').filter(p => p && p !== '$schema');
     
-    // 根据路径导航到 JSON 对象
-    let current: any = parsed;
-    let targetKey = '';
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      if (part.match(/^\d+$/)) {
-        const idx = parseInt(part, 10);
-        if (Array.isArray(current) && current[idx] !== undefined) {
-          current = current[idx];
-          if (i === parts.length - 1) targetKey = `[${idx}]`;
-        } else {
-          break;
+    if (parts.length === 0) {
+      // 根路径，跳转到第一行
+      jsonEditorRef.value.gotoLine(1);
+      return;
+    }
+    
+    // 构建完整的搜索路径，用于精确匹配
+    // 例如：/dns/servers/0/type -> 查找在 servers[0] 对象中的 type
+    const lines = source.split('\n');
+    let bestMatch: { line: number; score: number } | null = null;
+    
+    // 策略3a：查找最后一个字段名（最精确）
+    const lastPart = parts[parts.length - 1];
+    const searchKey = lastPart;
+    const escapedKey = searchKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    
+    // 查找包含该键的行，但需要确保它在正确的上下文中
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // 精确匹配键名（带引号和冒号）
+      const keyPattern = new RegExp(`["']${escapedKey}["']\\s*:`, 'i');
+      if (keyPattern.test(line)) {
+        // 计算上下文匹配度（检查前面的路径部分是否在附近出现）
+        let contextScore = 0;
+        const contextStart = Math.max(0, i - 20); // 向上查找20行作为上下文
+        const contextLines = lines.slice(contextStart, i + 1).join('\n');
+        
+        // 检查路径的父级是否在上下文中
+        for (let j = parts.length - 2; j >= 0; j--) {
+          const parentPart = parts[j];
+          if (contextLines.includes(`"${parentPart}"`) || contextLines.includes(`'${parentPart}'`)) {
+            contextScore++;
+          }
         }
-      } else {
-        if (current && typeof current === 'object' && part in current) {
-          current = current[part];
-          targetKey = part;
-        } else {
-          break;
+        
+        // 如果找到的键有良好的上下文匹配，优先选择
+        const score: number = contextScore * 10 + (bestMatch && i < bestMatch.line ? 1 : 0);
+        if (!bestMatch || score > bestMatch.score) {
+          bestMatch = { line: i + 1, score };
         }
       }
     }
     
-    // 在 JSON 文本中查找这个键的位置
-    if (targetKey) {
-      const lines = text.value.split('\n');
-      const searchPattern = new RegExp(`["']?${targetKey.replace(/[\[\]]/g, '\\$&')}["']?\\s*:`, 'i');
+    // 如果找到最佳匹配，跳转到那里
+    if (bestMatch) {
+      jsonEditorRef.value.gotoLine(bestMatch.line);
+      return;
+    }
+    
+    // 策略4：如果找不到，尝试查找路径中的任何一个部分（从后往前）
+    const reversedParts = [...parts].reverse();
+    for (const part of reversedParts) {
+      const escapedPart = part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const keyPattern = new RegExp(`["']${escapedPart}["']\\s*:`, 'i');
       
       for (let i = 0; i < lines.length; i++) {
-        if (searchPattern.test(lines[i])) {
-          jsonEditorRef.value.gotoLine(i + 1);
-          return;
-        }
-      }
-      
-      // 如果精确匹配失败，尝试简单包含匹配
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes(targetKey)) {
+        if (keyPattern.test(lines[i])) {
           jsonEditorRef.value.gotoLine(i + 1);
           return;
         }
       }
     }
+    
+    // 策略5：最后的后备方案 - 简单文本搜索
+    const fallbackKey = parts[parts.length - 1];
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].includes(`"${fallbackKey}"`) || lines[i].includes(`'${fallbackKey}'`)) {
+        jsonEditorRef.value.gotoLine(i + 1);
+        return;
+      }
+    }
+    
+    console.warn('Could not find path in source:', path);
   } catch (e) {
     // JSON 解析失败，使用简单的文本搜索
-    const parts = path.split('/').filter(p => p);
+    console.warn('Failed to parse JSON, using fallback search:', e);
+    const parts = path.split('/').filter(p => p && p !== '$schema');
     if (parts.length > 0) {
       const searchKey = parts[parts.length - 1];
       const lines = text.value.split('\n');
+      const escapedKey = searchKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const keyPattern = new RegExp(`["']?${escapedKey}["']?\\s*:`, 'i');
+      
       for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes(searchKey)) {
-          jsonEditorRef.value.gotoLine(i + 1);
+        if (keyPattern.test(lines[i])) {
+          await nextTick();
+          await new Promise(resolve => setTimeout(resolve, 100));
+          if (jsonEditorRef.value) {
+            jsonEditorRef.value.gotoLine(i + 1);
+          }
           return;
         }
       }
@@ -326,7 +437,7 @@ function gotoError(path: string) {
             <div class="panel">
               <div class="tabs">
                 <button :class="{ active: activeTab === 'errors' }" @click="activeTab = 'errors'">
-                  {{ t.common.errors }} ({{ errorCount }})
+                  {{ t.common.errors }} ({{ currentErrorCount }})
                 </button>
                 <button :class="{ active: activeTab === 'diff' }" @click="activeTab = 'diff'" v-if="isDirty">
                   {{ currentLocale === 'zh' ? '差异' : 'Diff' }} ({{ configDiff.length }})
@@ -337,13 +448,20 @@ function gotoError(path: string) {
               </div>
               
               <div v-show="activeTab === 'errors'" class="tab-content">
-                <button @click="validateNow" class="validate-btn">{{ t.common.validate }}</button>
+                <button @click="validateNow" class="validate-btn" v-if="mode === 'form'">{{ t.common.validate }}</button>
+                <div v-if="mode === 'json'" class="validation-status">
+                  <span class="status-text">
+                    {{ currentLocale === 'zh' 
+                      ? `实时校验中... (${currentErrorCount} 个错误)` 
+                      : `Real-time validation... (${currentErrorCount} errors)` }}
+                  </span>
+                </div>
                 <ul class="errors">
-                  <li v-for="(e, idx) in lastValidation.errors" :key="idx" @click="gotoError(e.path)" class="error-item">
+                  <li v-for="(e, idx) in displayedErrors" :key="idx" @click="gotoError(e.path)" class="error-item">
                     <span class="path">{{ e.path || (currentLocale === 'zh' ? '(根)' : '(root)') }}</span>
                     <span class="msg">{{ localizeErrorMessage(e.message) }}</span>
                   </li>
-                  <li v-if="lastValidation.errors.length === 0" class="no-errors">
+                  <li v-if="displayedErrors.length === 0" class="no-errors">
                     {{ currentLocale === 'zh' ? '没有错误' : 'No errors' }}
                   </li>
                 </ul>
@@ -399,18 +517,52 @@ function gotoError(path: string) {
 </template>
 
 <style scoped>
-.editor-layout { display: flex; flex-direction: column; height: 100vh; }
-.mode-switcher { display: flex; gap: 4px; padding: 8px; border-bottom: 1px solid var(--border, #e5e7eb); }
+.editor-layout { 
+  display: flex; 
+  flex-direction: column; 
+  height: 100vh; 
+  width: 100vw;
+  overflow: hidden; /* 确保外层无滚动条 */
+  position: relative;
+}
+.mode-switcher { display: flex; gap: 4px; padding: 8px; border-bottom: 1px solid var(--border, #e5e7eb); flex-shrink: 0; }
 .mode-switcher button { padding: 4px 12px; background: transparent; border: 1px solid var(--border, #e5e7eb); cursor: pointer; }
 .mode-switcher button.active { background: var(--brand, #3b82f6); color: white; border-color: var(--brand, #3b82f6); }
-.body { flex: 1; display: flex; min-height: 0; }
-.sidebar { width: 180px; border-right: 1px solid var(--border, #e5e7eb); padding: 8px; overflow-y: auto; }
+.body { 
+  flex: 1; 
+  display: flex; 
+  min-height: 0; 
+  overflow: hidden; /* 确保 body 无滚动条 */
+}
+.sidebar { 
+  width: 180px; 
+  border-right: 1px solid var(--border, #e5e7eb); 
+  padding: 8px; 
+  overflow-y: auto; 
+  overflow-x: hidden;
+  flex-shrink: 0; /* 侧边栏不收缩 */
+}
 .form-nav { display: flex; flex-direction: column; gap: 4px; }
 .form-nav button { padding: 8px 12px; text-align: left; background: transparent; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
 .form-nav button:hover { background: var(--bg-panel, #f5f5f5); }
 .form-nav button.active { background: var(--brand, #3b82f6); color: white; }
-.left { flex: 1; padding: 8px; min-width: 0; display: flex; flex-direction: column; }
-.json-editor-wrapper { flex: 1; display: flex; flex-direction: column; border: 1px solid var(--border, #e5e7eb); border-radius: 6px; overflow: hidden; }
+.left { 
+  flex: 1; 
+  padding: 8px; 
+  min-width: 0; 
+  display: flex; 
+  flex-direction: column; 
+  overflow: hidden; /* 确保左侧容器无滚动条 */
+}
+.json-editor-wrapper { 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  border: 1px solid var(--border, #e5e7eb); 
+  border-radius: 6px; 
+  overflow: hidden; 
+  min-height: 0; /* 允许 flex 子项收缩 */
+}
 .json-editor-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: var(--bg-app, #f5f5f5); border-bottom: 1px solid var(--border, #e5e7eb); }
 .toolbar-left { display: flex; align-items: center; gap: 8px; }
 .toolbar-label { font-size: 12px; font-weight: 600; color: var(--text-secondary, #666); }
@@ -422,21 +574,48 @@ function gotoError(path: string) {
 .toolbar-divider { width: 1px; height: 20px; background: var(--border, #e5e7eb); margin: 0 4px; }
 .form-container { flex: 1; overflow-y: auto; overflow-x: hidden; }
 .placeholder { padding: 40px; text-align: center; color: var(--text-secondary, #64748b); }
-.right { width: 320px; border-left: 1px solid var(--border, #e5e7eb); padding: 8px; overflow: auto; }
+.right { 
+  width: 320px; 
+  border-left: 1px solid var(--border, #e5e7eb); 
+  padding: 8px; 
+  overflow: hidden; /* 外层容器无滚动条 */
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* 允许 flex 子项收缩 */
+}
 .summary { font-weight: 600; margin-bottom: 8px; }
 .errors { margin: 8px 0 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .error-item { padding: 10px 12px; border-radius: 4px; cursor: pointer; transition: background 0.2s; line-height: 1.5; }
 .error-item:hover { background: var(--bg-app, #f5f5f5); }
 .path { color: #64748b; margin-right: 8px; font-family: ui-monospace, monospace; font-size: 13px; font-weight: 500; }
 .msg { color: #dc2626; font-size: 14px; line-height: 1.6; }
-.panel { display: flex; flex-direction: column; height: 100%; }
-.tabs { display: flex; gap: 4px; padding: 8px; border-bottom: 1px solid var(--border, #e5e7eb); }
+.panel { 
+  display: flex; 
+  flex-direction: column; 
+  height: 100%; 
+  min-height: 0; /* 允许 flex 子项收缩 */
+}
+.tabs { 
+  display: flex; 
+  gap: 4px; 
+  padding: 8px; 
+  border-bottom: 1px solid var(--border, #e5e7eb); 
+  flex-shrink: 0; /* 标签栏不收缩 */
+}
 .tabs button { padding: 6px 12px; border: none; background: transparent; cursor: pointer; font-size: 12px; border-radius: 4px; }
 .tabs button:hover { background: var(--bg-app, #f5f5f5); }
 .tabs button.active { background: var(--brand, #3b82f6); color: white; }
-.tab-content { flex: 1; overflow: auto; padding: 12px; }
+.tab-content { 
+  flex: 1; 
+  overflow-y: auto; 
+  overflow-x: hidden; 
+  padding: 12px; 
+  min-height: 0; /* 允许滚动 */
+}
 .validate-btn { width: 100%; padding: 8px; margin-bottom: 12px; background: var(--brand, #3b82f6); color: white; border: none; border-radius: 4px; cursor: pointer; }
 .validate-btn:hover { background: var(--brand-hover, #2563eb); }
+.validation-status { padding: 8px 12px; margin-bottom: 12px; background: var(--bg-app, #f5f5f5); border-radius: 4px; border: 1px solid var(--border, #e5e7eb); }
+.validation-status .status-text { font-size: 12px; color: var(--text-secondary, #666); }
 .no-errors, .no-diff { padding: 24px; text-align: center; color: var(--text-secondary, #666); font-size: 13px; }
 .diff-list { display: flex; flex-direction: column; gap: 12px; }
 .diff-item { padding: 10px; border-radius: 4px; border-left: 3px solid; }

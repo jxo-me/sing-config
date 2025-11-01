@@ -88,6 +88,7 @@
           "type": "object",
           "required": ["type"],
           "properties": {
+            "tag": { "type": "string" },
             "type": { "const": "local" }
           },
           "additionalProperties": true
@@ -199,6 +200,7 @@
       "required": ["type"],
       "properties": {
         "type": { "const": "hosts" },
+        "tag": { "type": "string" },
         "path": { "type": "array", "items": { "type": "string" } },
         "predefined": {
           "type": "object",
@@ -229,6 +231,7 @@
       "required": ["type"],
       "properties": {
         "type": { "const": "fakeip" },
+        "tag": { "type": "string" },
         "inet4_range": { "$ref": "#/definitions/CIDR" },
         "inet6_range": { "$ref": "#/definitions/CIDR" }
       },
@@ -239,6 +242,7 @@
       "required": ["type"],
       "properties": {
         "type": { "const": "tailscale" },
+        "tag": { "type": "string" },
         "endpoint": { "type": "string" },
         "accept_default_resolvers": { "type": "boolean" }
       },
@@ -249,6 +253,7 @@
       "required": ["type","service"],
       "properties": {
         "type": { "const": "resolved" },
+        "tag": { "type": "string" },
         "service": { "type": "string" },
         "accept_default_resolvers": { "type": "boolean" }
       },
@@ -1506,7 +1511,7 @@
               "properties": {
                 "enabled": { "type": "boolean" }
               },
-              "additionalProperties": false
+              "additionalProperties": true
             }
           ]
         }
@@ -1522,7 +1527,7 @@
             "type": { "const": "resolved" },
             "tag": { "type": "string" }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       ]
     },
@@ -1539,7 +1544,7 @@
             "servers": { "type": "object", "additionalProperties": { "type": "string" } },
             "cache_path": { "type": "string" }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       ]
     },
@@ -1580,12 +1585,7 @@
             { "type": "array", "items": { "type": "string" } }
           ]
         },
-        "access_control_allow_private_network": { "type": "boolean" },
-        "cache_file": { "type": "string" },
-        "cache_id": { "type": "string" },
-        "store_mode": { "type": "boolean" },
-        "store_selected": { "type": "boolean" },
-        "store_fakeip": { "type": "boolean" }
+        "access_control_allow_private_network": { "type": "boolean" }
       }
     },
     "V2RayAPIOptions": {
