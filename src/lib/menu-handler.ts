@@ -10,7 +10,7 @@ import { invoke } from '@tauri-apps/api/core';
 type MenuEvent = string;
 
 // Topbar 组件引用（通过全局变量或事件总线传递）
-let topbarRef: { onOpen?: () => Promise<void>; onSave?: () => Promise<void>; onSaveAs?: () => Promise<void>; onLoadExample?: () => Promise<void>; showWizard?: () => void; showTemplates?: () => void; isOpening?: () => boolean } | null = null;
+let topbarRef: { onNew?: () => Promise<void>; onOpen?: () => Promise<void>; onSave?: () => Promise<void>; onSaveAs?: () => Promise<void>; onLoadExample?: () => Promise<void>; showWizard?: () => void; showTemplates?: () => void; isOpening?: () => boolean } | null = null;
 
 // 正在处理的事件集合，防止同一事件被并发处理
 const processingEvents = new Set<string>();
@@ -48,8 +48,7 @@ async function handleMenuEvent(menuId: string) {
     switch (menuId) {
       // 文件菜单
       case 'file_new':
-        // TODO: 实现新建文件功能
-        console.log('New file');
+        await topbarRef?.onNew?.();
         break;
 
       case 'file_open':

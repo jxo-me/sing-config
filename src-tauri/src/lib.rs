@@ -30,6 +30,15 @@ fn exit_app(app: AppHandle) {
     app.exit(0);
 }
 
+/// 更新窗口标题
+#[tauri::command]
+fn set_window_title(app: AppHandle, title: String) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.set_title(&title).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -66,7 +75,8 @@ pub fn run() {
             greet,
             get_current_locale,
             update_menu_locale,
-            exit_app
+            exit_app,
+            set_window_title
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

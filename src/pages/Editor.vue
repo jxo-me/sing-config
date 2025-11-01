@@ -12,11 +12,12 @@ import CertificateForm from '../components/forms/CertificateForm.vue';
 import EndpointsForm from '../components/forms/EndpointsForm.vue';
 import ServicesForm from '../components/forms/ServicesForm.vue';
 import ExperimentalForm from '../components/forms/ExperimentalForm.vue';
-import { currentConfig, errorCount, lastValidation, toPrettyJson, loadFromText, runValidation, configDiff, isDirty } from '../stores/config';
+import { currentConfig, errorCount, lastValidation, toPrettyJson, loadFromText, runValidation, configDiff, isDirty, lastSavedPath, lastOpenedPath } from '../stores/config';
 import { useI18n } from '../i18n';
 import { runPreflightCheck, type PreflightIssue } from '../lib/preflight';
 import { localizeErrorMessage, editorErrors, editorValidationState } from '../lib/codemirror-json-schema';
 import { setupMenuHandlers, cleanupMenuHandlers, setTopbarRef, setEditorRef } from '../lib/menu-handler';
+import { invoke } from '@tauri-apps/api/core';
 
 const { t, currentLocale, setLocale } = useI18n();
 
@@ -49,7 +50,7 @@ watch(currentConfig, async () => {
 
 const preflightIssues = ref<PreflightIssue[]>([]);
 const showPreflight = ref(false);
-const topbarRef = ref<{ onSave: () => Promise<void>; onSaveAs: () => Promise<void>; onOpen: () => Promise<void>; isOpening?: () => boolean } | null>(null);
+const topbarRef = ref<{ onNew: () => Promise<void>; onSave: () => Promise<void>; onSaveAs: () => Promise<void>; onOpen: () => Promise<void>; isOpening?: () => boolean } | null>(null);
 
 const mode = ref<'json' | 'form'>('json');
 const activeForm = ref<'log' | 'dns' | 'ntp' | 'certificate' | 'endpoints' | 'inbounds' | 'outbounds' | 'route' | 'services' | 'experimental'>('dns');
@@ -186,6 +187,13 @@ function handleKeyboardShortcuts(event: KeyboardEvent) {
     return;
   }
   
+  // Ctrl+N / Cmd+N: 新建文件（作为菜单系统的后备）
+  if ((event.ctrlKey || event.metaKey) && (event.key === 'n' || event.key === 'N')) {
+    event.preventDefault();
+    topbarRef.value?.onNew?.();
+    return;
+  }
+  
   // Ctrl+O / Cmd+O: 打开文件（作为菜单系统的后备）
   if ((event.ctrlKey || event.metaKey) && (event.key === 'o' || event.key === 'O')) {
     // 检查是否已经在打开中，防止重复调用
@@ -316,6 +324,34 @@ onMounted(async () => {
     if (newRef) {
       updateEditorRef();
     }
+  }, { immediate: true });
+  
+  // 更新窗口标题的函数
+  const updateWindowTitle = async () => {
+    let title = 'sing-config';
+    const filePath = lastSavedPath.value || lastOpenedPath.value;
+    
+    if (filePath) {
+      // 提取文件名
+      const fileName = filePath.split(/[/\\]/).pop() || 'untitled.json';
+      title = fileName;
+    }
+    
+    // 如果有未保存的修改，添加星号
+    if (isDirty.value) {
+      title += '*';
+    }
+    
+    try {
+      await invoke('set_window_title', { title });
+    } catch (error) {
+      console.error('Failed to update window title:', error);
+    }
+  };
+  
+  // 监听 isDirty、lastSavedPath 和 lastOpenedPath 的变化，更新窗口标题
+  watch([isDirty, lastSavedPath, lastOpenedPath], () => {
+    updateWindowTitle();
   }, { immediate: true });
 });
 

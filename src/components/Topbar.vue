@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { open, save, message } from '@tauri-apps/plugin-dialog';
-import { loadFromText, toPrettyJson, runValidation, lastValidation, setLastSavedPath, setLastOpenedPath, lastSavedPath } from '../stores/config';
+import { loadFromText, toPrettyJson, runValidation, lastValidation, setLastSavedPath, setLastOpenedPath, lastSavedPath, setConfig, setOriginalConfig } from '../stores/config';
 import { useI18n } from '../i18n';
 import TemplateLibrary from './TemplateLibrary.vue';
 import SetupWizard from './SetupWizard.vue';
@@ -13,6 +13,15 @@ const saving = ref(false);
 const showTemplates = ref(false);
 const showWizard = ref(false);
 const opening = ref(false); // 防止重复打开
+
+async function onNew() {
+  // 重置配置为空对象
+  const emptyConfig = {};
+  await setConfig(emptyConfig);
+  setOriginalConfig(emptyConfig);
+  setLastSavedPath(null);
+  setLastOpenedPath(null);
+}
 
 async function onOpen() {
   // 如果已经在打开文件，直接返回，防止重复调用
@@ -126,6 +135,7 @@ async function onSaveAs() {
 }
 
 defineExpose({
+  onNew,
   onSave,
   onSaveAs,
   onOpen,
