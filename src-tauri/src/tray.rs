@@ -1,4 +1,5 @@
 use tauri::{Manager, Runtime};
+use tauri::image::Image;
 use crate::menu_i18n::MenuI18n;
 
 /// 构建系统托盘
@@ -14,9 +15,13 @@ pub fn build_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<tauri::tray::
     
     // 创建托盘图标
     // Tauri 2.0: TrayIconBuilder::new() 不需要参数
-    // 使用应用的默认窗口图标作为托盘图标
+    // 从资源文件加载图标（icon.png 是 512x512 PNG）
+    let icon_bytes = include_bytes!("../icons/icon.png");
+    let icon = Image::new_owned(icon_bytes.to_vec(), 512, 512);
+    
     let tray = tauri::tray::TrayIconBuilder::new()
         .menu(&menu)
+        .icon(icon)
         // 设置左键点击不显示菜单，而是切换窗口显示/隐藏（通过菜单项实现）
         .show_menu_on_left_click(false)
         // 托盘图标点击事件处理
@@ -38,7 +43,7 @@ pub fn build_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<tauri::tray::
         .on_menu_event(|app, event| {
             handle_tray_event(app, &event);
         })
-        // 图标从应用默认图标加载，如果没有则使用系统默认
+        // 构建并注册托盘图标
         .build(app)?;
     
     Ok(tray)
