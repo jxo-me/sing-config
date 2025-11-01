@@ -195,6 +195,26 @@ function handleKeyboardShortcuts(event: KeyboardEvent) {
     return;
   }
   
+  // Ctrl+Z / Cmd+Z: 撤销（当编辑器在 JSON 模式时）
+  if ((event.ctrlKey || event.metaKey) && !event.shiftKey && (event.key === 'z' || event.key === 'Z')) {
+    // 只在 JSON 模式下处理，让 CodeMirror 在编辑器有焦点时处理
+    // 如果编辑器没有焦点，或者 CodeMirror 没有处理，我们这里作为后备
+    if (mode.value === 'json' && jsonEditorRef.value?.undo) {
+      event.preventDefault();
+      jsonEditorRef.value.undo();
+    }
+    return;
+  }
+  
+  // Ctrl+Shift+Z / Cmd+Shift+Z: 重做（当编辑器在 JSON 模式时）
+  if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'z' || event.key === 'Z')) {
+    if (mode.value === 'json' && jsonEditorRef.value?.redo) {
+      event.preventDefault();
+      jsonEditorRef.value.redo();
+    }
+    return;
+  }
+  
 }
 
 let formatTextHandler: EventListener | null = null;
