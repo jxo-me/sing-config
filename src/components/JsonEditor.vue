@@ -19,7 +19,9 @@ import { useI18n } from '../i18n';
 
 const { currentLocale } = useI18n();
 
-const props = defineProps<{ modelValue: string }>();
+const props = defineProps<{ 
+  modelValue: string;
+}>();
 const emit = defineEmits<{ 
   (e: 'update:modelValue', v: string): void;
   (e: 'gotoLine', line: number, column?: number): void;

@@ -28,9 +28,27 @@ watch(currentLocale, async () => {
   }
 });
 
+// 监听 currentConfig 变化，同步更新 text.value（用于外部更新场景：加载文件、加载示例、清空等）
+watch(currentConfig, async () => {
+  // 如果正在用户编辑，不自动更新 text.value（避免打断用户输入）
+  if (isUserEditing) {
+    return;
+  }
+  
+  // 当 currentConfig 通过 loadFromText 等方式更新时，同步 text.value
+  // 等待下一个 tick 确保配置已完全更新
+  await nextTick();
+  const currentTextFromConfig = toPrettyJson();
+  
+  // 只有当内容确实不同时才更新（避免不必要的更新）
+  if (text.value !== currentTextFromConfig) {
+    text.value = currentTextFromConfig;
+  }
+}, { flush: 'post' });
+
 const preflightIssues = ref<PreflightIssue[]>([]);
 const showPreflight = ref(false);
-const topbarRef = ref<{ onSave: () => Promise<void>; onSaveAs: () => Promise<void>; onOpen: () => Promise<void>; onFormat: () => void } | null>(null);
+const topbarRef = ref<{ onSave: () => Promise<void>; onSaveAs: () => Promise<void>; onOpen: () => Promise<void> } | null>(null);
 
 const mode = ref<'json' | 'form'>('json');
 const activeForm = ref<'log' | 'dns' | 'ntp' | 'certificate' | 'endpoints' | 'inbounds' | 'outbounds' | 'route' | 'services' | 'experimental'>('dns');
@@ -66,18 +84,24 @@ function formatDiffValue(value: unknown): string {
   return String(value);
 }
 
-watch(currentConfig, () => {
-  text.value = toPrettyJson();
-});
+// 取消自动格式化 - 用户需要手动点击格式化按钮
+// watch(currentConfig, () => {
+//   text.value = toPrettyJson();
+// });
 
 let timer: number | undefined;
+let isUserEditing = false; // 标记是否正在用户编辑
+
 async function onInput(val: string) {
+  isUserEditing = true; // 标记为用户编辑
   window.clearTimeout(timer);
   timer = window.setTimeout(async () => {
     try {
       await loadFromText(val);
+      isUserEditing = false; // 编辑完成
     } catch (e) {
       // 忽略解析错误，等待用户继续输入
+      isUserEditing = false;
     }
   }, 300);
 }
@@ -126,6 +150,7 @@ function getIssueLevelClass(level: string): string {
   }[level] || '';
 }
 
+
 function handleKeyboardShortcuts(event: KeyboardEvent) {
   // Ctrl+S / Cmd+S: 保存
   if ((event.ctrlKey || event.metaKey) && event.key === 's') {
@@ -154,22 +179,28 @@ function handleKeyboardShortcuts(event: KeyboardEvent) {
     return;
   }
   
-  // Ctrl+Shift+F / Cmd+Shift+F: 格式化
-  if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'F') {
-    event.preventDefault();
-    if (topbarRef.value) {
-      topbarRef.value.onFormat();
-    }
-    return;
-  }
 }
+
+let formatTextHandler: EventListener | null = null;
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeyboardShortcuts);
+  
+  // 监听格式化/压缩事件
+  formatTextHandler = ((event: Event) => {
+    const customEvent = event as CustomEvent<string>;
+    if (customEvent.detail) {
+      text.value = customEvent.detail;
+    }
+  }) as EventListener;
+  window.addEventListener('update-json-text', formatTextHandler);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeyboardShortcuts);
+  if (formatTextHandler) {
+    window.removeEventListener('update-json-text', formatTextHandler);
+  }
 });
 
 // 保存当前模式的滚动位置
@@ -424,7 +455,11 @@ async function gotoError(path: string) {
       </div>
       <div class="left">
         <div v-if="mode === 'json'" class="json-editor-wrapper">
-          <JsonEditor ref="jsonEditorRef" v-model="text" @update:modelValue="onInput" />
+          <JsonEditor 
+            ref="jsonEditorRef" 
+            v-model="text" 
+            @update:modelValue="onInput"
+          />
         </div>
         <div v-else ref="formContainerRef" class="form-container">
           <LogForm v-if="activeForm === 'log'" />

@@ -112,16 +112,10 @@ async function onSaveAs() {
   }
 }
 
-function onFormat() {
-  const text = toPrettyJson();
-  loadFromText(text);
-}
-
 defineExpose({
   onSave,
   onSaveAs,
   onOpen,
-  onFormat,
 });
 </script>
 
@@ -134,7 +128,6 @@ defineExpose({
       <button @click="showTemplates = true">{{ currentLocale === 'zh' ? '模板' : 'Templates' }}</button>
       <button @click="onSave" :disabled="saving">{{ t.common.save }}</button>
       <button @click="onSaveAs" :disabled="saving">{{ currentLocale === 'zh' ? '另存为' : 'Save As' }}</button>
-      <button @click="onFormat">{{ t.common.format }}</button>
     </div>
     <div class="topbar-right">
       <select :value="currentLocale" @change="setLocale(($event.target as HTMLSelectElement).value as 'zh' | 'en')" class="language-select">

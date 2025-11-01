@@ -1,13 +1,14 @@
 import { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { selectAll, undo, redo } from '@codemirror/commands';
+import { toPrettyJson, toCompactJson, loadFromText } from '../stores/config';
 
 // 多语言菜单文本
 const menuTexts = {
   zh: {
-    lookUp: '查找 ""',
-    translate: '翻译 ""',
-    searchWithGoogle: '使用 Google 搜索',
+    format: '格式化',
+    compact: '压缩',
+    clear: '清空',
     cut: '剪切',
     copy: '复制',
     paste: '粘贴',
@@ -24,9 +25,9 @@ const menuTexts = {
     inspectElement: '检查元素',
   },
   en: {
-    lookUp: 'Look Up ""',
-    translate: 'Translate ""',
-    searchWithGoogle: 'Search with Google',
+    format: 'Format',
+    compact: 'Minify',
+    clear: 'Clear',
     cut: 'Cut',
     copy: 'Copy',
     paste: 'Paste',
@@ -130,71 +131,62 @@ function createContextMenu(view: EditorView, event: MouseEvent) {
     hasSubmenu?: boolean;
   }> = [
     {
-      label: texts.lookUp,
+      label: texts.format,
       action: async () => {
-        if (selectedText) {
-          const dictUrl = `https://www.dictionary.com/browse/${encodeURIComponent(selectedText)}`;
-          try {
-            // 查找功能：在字典网站查找
-            const { openUrl } = await import('@tauri-apps/plugin-opener');
-            await openUrl(dictUrl);
-          } catch (err) {
-            console.warn('Failed to open dictionary with opener:', err);
-            // 回退到 window.open（如果是开发模式或 opener 不可用）
-            try {
-              window.open(dictUrl, '_blank');
-            } catch (e) {
-              console.error('Failed to open with window.open:', e);
-            }
-          }
+        try {
+          const formattedText = toPrettyJson();
+          // 更新配置状态，watch(currentConfig) 会自动同步 text.value
+          await loadFromText(formattedText);
+        } catch (err) {
+          console.error('Failed to format JSON:', err);
         }
         menu.remove();
       },
-      enabled: hasSelection && selectedText.length > 0,
+      enabled: true,
     },
     {
-      label: texts.translate,
+      label: texts.compact,
       action: async () => {
-        if (selectedText) {
-          const translateUrl = `https://translate.google.com/?sl=auto&tl=en&text=${encodeURIComponent(selectedText)}`;
-          try {
-            // 翻译功能
-            const { openUrl } = await import('@tauri-apps/plugin-opener');
-            await openUrl(translateUrl);
-          } catch (err) {
-            console.warn('Failed to open translate with opener:', err);
-            try {
-              window.open(translateUrl, '_blank');
-            } catch (e) {
-              console.error('Failed to open with window.open:', e);
-            }
-          }
+        try {
+          // 压缩：先获取当前配置的压缩版本
+          const compactText = toCompactJson();
+          // 更新配置状态
+          await loadFromText(compactText);
+          // 等待配置更新完成
+          await new Promise(resolve => setTimeout(resolve, 50));
+          // 直接通过事件更新 text.value 为压缩文本（避免 watch 重新格式化为美化版本）
+          const event = new CustomEvent('update-json-text', { detail: compactText });
+          window.dispatchEvent(event);
+          // 同时直接更新编辑器内容（确保同步）
+          view.dispatch({
+            changes: {
+              from: 0,
+              to: view.state.doc.length,
+              insert: compactText,
+            },
+            selection: { anchor: 0 },
+          });
+        } catch (err) {
+          console.error('Failed to compact JSON:', err);
         }
         menu.remove();
       },
-      enabled: hasSelection && selectedText.length > 0,
+      enabled: true,
     },
-    { type: 'separator' },
     {
-      label: texts.searchWithGoogle,
+      label: texts.clear,
       action: async () => {
-        if (selectedText) {
-          const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(selectedText)}`;
-          try {
-            const { openUrl } = await import('@tauri-apps/plugin-opener');
-            await openUrl(searchUrl);
-          } catch (err) {
-            console.warn('Failed to open search with opener:', err);
-            try {
-              window.open(searchUrl, '_blank');
-            } catch (e) {
-              console.error('Failed to open with window.open:', e);
-            }
-          }
+        try {
+          // 清空内容：设置为空 JSON 对象（格式化显示）
+          const emptyJson = JSON.stringify({}, null, 2);
+          // 更新配置状态，watch(currentConfig) 会自动同步 text.value
+          await loadFromText(emptyJson);
+        } catch (err) {
+          console.error('Failed to clear content:', err);
         }
         menu.remove();
       },
-      enabled: hasSelection && selectedText.length > 0,
+      enabled: true,
     },
     { type: 'separator' },
     {

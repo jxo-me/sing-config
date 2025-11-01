@@ -36,6 +36,10 @@ export function toPrettyJson(): string {
   return JSON.stringify(currentConfig.value, null, 2);
 }
 
+export function toCompactJson(): string {
+  return JSON.stringify(currentConfig.value);
+}
+
 export function setLastSavedPath(path: string | null) {
   lastSavedPath.value = path;
   isDirty.value = false;
