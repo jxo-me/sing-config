@@ -111,7 +111,14 @@ function deduplicateErrors(errors: Array<{ path: string; message: string; keywor
 
 function formatError(err: JsonError): { path: string; message: string; keyword: string } {
   // JsonError 结构：{ type, name, code, message, data?: { pointer, ... } }
-  const path = (err.data?.pointer as string) || '';
+  // 处理路径：统一格式为 /path/to/field（去掉 # 前缀）
+  let errorPath = '';
+  if (err.data?.pointer && err.data.pointer !== '#') {
+    errorPath = err.data.pointer.startsWith('#') ? err.data.pointer.slice(1) : err.data.pointer;
+  } else if (err.data?.property) {
+    errorPath = `/${err.data.property}`;
+  }
+  
   // 使用统一的错误格式化函数，支持多语言
   const formatErrorFn = createFormatError();
   const message = formatErrorFn(err);
@@ -119,7 +126,7 @@ function formatError(err: JsonError): { path: string; message: string; keyword: 
   const keyword = err.code || err.name || err.type || '';
   
   return {
-    path: String(path),
+    path: String(errorPath),
     message: String(message),
     keyword: String(keyword),
   };
