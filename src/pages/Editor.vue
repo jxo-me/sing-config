@@ -615,7 +615,7 @@ async function gotoError(path: string) {
       <button :class="{ active: mode === 'form' }" @click="mode = 'form'">{{ t.common.form }}</button>
     </div>
     <div class="body">
-      <div v-if="mode === 'form'" class="sidebar">
+      <div v-show="mode === 'form'" class="sidebar">
         <nav class="form-nav">
           <button :class="{ active: activeForm === 'log' }" @click="activeForm = 'log'">
             {{ currentLocale === 'zh' ? '日志' : 'Log' }}
@@ -650,14 +650,14 @@ async function gotoError(path: string) {
         </nav>
       </div>
       <div class="left">
-        <div v-if="mode === 'json'" class="json-editor-wrapper">
+        <div v-show="mode === 'json'" class="json-editor-wrapper">
           <JsonEditor 
             ref="jsonEditorRef" 
             v-model="text" 
             @update:modelValue="onInput"
           />
         </div>
-        <div v-else ref="formContainerRef" class="form-container">
+        <div v-show="mode === 'form'" ref="formContainerRef" class="form-container">
           <LogForm v-if="activeForm === 'log'" />
           <DnsForm v-else-if="activeForm === 'dns'" />
           <NtpForm v-else-if="activeForm === 'ntp'" />
@@ -803,6 +803,9 @@ async function gotoError(path: string) {
   overflow: hidden; 
   min-height: 0; /* 允许 flex 子项收缩 */
 }
+.json-editor-wrapper:not(:visible) {
+  display: none !important; /* v-show 隐藏时不占空间 */
+}
 .json-editor-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: var(--bg-app, #f5f5f5); border-bottom: 1px solid var(--border, #e5e7eb); }
 .toolbar-left { display: flex; align-items: center; gap: 8px; }
 .toolbar-label { font-size: 12px; font-weight: 600; color: var(--text-secondary, #666); }
@@ -813,6 +816,9 @@ async function gotoError(path: string) {
 .toolbar-icon { font-size: 14px; line-height: 1; }
 .toolbar-divider { width: 1px; height: 20px; background: var(--border, #e5e7eb); margin: 0 4px; }
 .form-container { flex: 1; overflow-y: auto; overflow-x: hidden; }
+.form-container:not(:visible) {
+  display: none !important; /* v-show 隐藏时不占空间 */
+}
 .placeholder { padding: 40px; text-align: center; color: var(--text-secondary, #64748b); }
 .right { 
   width: 320px; 
