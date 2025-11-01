@@ -683,7 +683,7 @@ async function gotoError(path: string) {
                 <button :class="{ active: activeTab === 'errors' }" @click="activeTab = 'errors'">
                   {{ t.common.errors }} ({{ currentErrorCount }})
                 </button>
-                <button :class="{ active: activeTab === 'diff' }" @click="activeTab = 'diff'" v-if="isDirty">
+                <button :class="{ active: activeTab === 'diff' }" @click="activeTab = 'diff'">
                   {{ currentLocale === 'zh' ? '差异' : 'Diff' }} ({{ configDiff.length }})
                 </button>
                 <button :class="{ active: activeTab === 'preflight' }" @click="runPreflight">
