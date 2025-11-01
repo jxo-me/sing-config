@@ -1,13 +1,37 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { open, save, message } from '@tauri-apps/plugin-dialog';
 import { loadFromText, toPrettyJson, runValidation, lastValidation, setLastSavedPath, setLastOpenedPath, lastSavedPath, lastOpenedPath, setConfig, setOriginalConfig } from '../stores/config';
 import { useI18n } from '../i18n';
+import { getCurrentTheme, setTheme, watchSystemTheme, type Theme } from '../lib/theme';
 import TemplateLibrary from './TemplateLibrary.vue';
 import SetupWizard from './SetupWizard.vue';
 
 const { t, currentLocale, setLocale } = useI18n();
+
+// 主题管理
+const currentTheme = ref<Theme>(getCurrentTheme());
+
+function toggleTheme() {
+  const newTheme = currentTheme.value === 'material-light' 
+    ? 'material-dark' 
+    : 'material-light';
+  setTheme(newTheme);
+  currentTheme.value = newTheme;
+}
+
+onMounted(() => {
+  // 监听主题变更事件（跨组件同步）
+  window.addEventListener('theme-change', ((e: CustomEvent<Theme>) => {
+    currentTheme.value = e.detail;
+  }) as EventListener);
+  
+  // 监听系统主题变化（仅在未手动设置时）
+  watchSystemTheme((theme) => {
+    currentTheme.value = theme;
+  });
+});
 
 const saving = ref(false);
 const showTemplates = ref(false);
@@ -173,6 +197,16 @@ defineExpose({
       <button @click="onSaveAs" :disabled="saving">{{ currentLocale === 'zh' ? '另存为' : 'Save As' }}</button>
     </div>
     <div class="topbar-right">
+      <button 
+        @click="toggleTheme" 
+        class="theme-toggle"
+        :title="currentLocale === 'zh' 
+          ? (currentTheme === 'material-light' ? '切换到深色主题' : '切换到浅色主题')
+          : (currentTheme === 'material-light' ? 'Switch to dark theme' : 'Switch to light theme')"
+      >
+        <span v-if="currentTheme === 'material-light'">🌙</span>
+        <span v-else>☀️</span>
+      </button>
       <select :value="currentLocale" @change="setLocale(($event.target as HTMLSelectElement).value as 'zh' | 'en')" class="language-select">
         <option value="zh">中文</option>
         <option value="en">English</option>
@@ -220,6 +254,26 @@ defineExpose({
 .topbar-right {
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+.theme-toggle {
+  padding: 6px 10px;
+  cursor: pointer;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 4px;
+  background: var(--bg-panel, #fff);
+  font-size: 18px;
+  line-height: 1;
+  transition: all 0.2s ease;
+  min-width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.theme-toggle:hover {
+  background: var(--bg-hover, #f5f5f5);
+  border-color: var(--brand, #3b82f6);
+  transform: scale(1.05);
 }
 .language-select {
   padding: 4px 8px;

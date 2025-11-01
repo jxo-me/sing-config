@@ -1,0 +1,68 @@
+/**
+ * Material Design 3 - Light Theme
+ * 基于 Material Design 3 的浅色主题配色方案
+ * 参考：https://m3.material.io/
+ */
+
+:root[data-theme="material-light"] {
+  /* === Primary Colors (主色) === */
+  /* 使用 Material Design 3 的蓝色作为主色 */
+  --brand: #6750A4; /* Primary 40 (M3 Purple) */
+  --brand-hover: #7C4DFF; /* Primary 50 */
+  --brand-light: #EADDFF; /* Primary 90 */
+  --brand-dark: #21005D; /* Primary 10 */
+  
+  /* === Surface Colors (表面色) === */
+  --bg-app: #FFFBFE; /* Surface container lowest */
+  --bg-panel: #FFFFFF; /* Surface */
+  --bg-hover: #F7F2FA; /* Surface container */
+  --bg-active: #ECE6F0; /* Surface container high */
+  
+  /* === Text Colors (文字颜色) === */
+  --text-primary: #1C1B1F; /* On surface */
+  --text-secondary: #49454F; /* On surface variant */
+  --text-disabled: #CAC4D0; /* On surface disabled */
+  --text-on-brand: #FFFFFF; /* On primary */
+  
+  /* === Border & Divider Colors === */
+  --border: #CAC4D0; /* Outline */
+  --border-hover: #938F99; /* Outline variant */
+  --border-light: #E7E0EC; /* Outline light */
+  
+  /* === Error Colors === */
+  --error: #BA1A1A; /* Error */
+  --error-container: #F9DEDC; /* Error container */
+  --on-error: #FFFFFF; /* On error */
+  --on-error-container: #410002; /* On error container */
+  
+  /* === Success Colors === */
+  --success: #006E1C; /* Success */
+  --success-container: #9CF683; /* Success container */
+  
+  /* === Warning Colors === */
+  --warning: #7C5800; /* Warning */
+  --warning-container: #FFE08A; /* Warning container */
+  
+  /* === Info Colors === */
+  --info: #0057D2; /* Info */
+  --info-container: #DAE2FF; /* Info container */
+  
+  /* === Shadow & Elevation === */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.15);
+  
+  /* === State Colors === */
+  --state-hover: rgba(103, 80, 164, 0.08); /* Primary hover overlay */
+  --state-pressed: rgba(103, 80, 164, 0.12); /* Primary pressed overlay */
+  --state-focus: rgba(103, 80, 164, 0.12); /* Primary focus ring */
+  
+  /* === Code Editor Specific === */
+  --code-bg: #FFFFFF;
+  --code-text: #1C1B1F;
+  --code-string: #006E1C;
+  --code-number: #9A27B0;
+  --code-keyword: #6750A4;
+  --code-comment: #938F99;
+}
+

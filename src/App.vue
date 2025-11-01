@@ -6,6 +6,12 @@ import Editor from './pages/Editor.vue';
   <Editor />
 </template>
 
+<!-- 引入 Material Design 3 主题 -->
+<style>
+@import './themes/material-light.css';
+@import './themes/material-dark.css';
+</style>
+
 <style>
 /* 全局样式：确保根元素无滚动条 */
 html, body {
