@@ -12,13 +12,26 @@ const { t, currentLocale, setLocale } = useI18n();
 const saving = ref(false);
 const showTemplates = ref(false);
 const showWizard = ref(false);
+const opening = ref(false); // 防止重复打开
 
 async function onOpen() {
-  const path = await open({ multiple: false, filters: [{ name: 'JSON', extensions: ['json'] }] });
-  if (!path || Array.isArray(path)) return;
-  const content = await readTextFile(path as string);
-  await loadFromText(content);
-  setLastOpenedPath(path as string);
+  // 如果已经在打开文件，直接返回，防止重复调用
+  if (opening.value) {
+    return;
+  }
+  
+  opening.value = true;
+  try {
+    const path = await open({ multiple: false, filters: [{ name: 'JSON', extensions: ['json'] }] });
+    if (!path || Array.isArray(path)) return;
+    const content = await readTextFile(path as string);
+    await loadFromText(content);
+    setLastOpenedPath(path as string);
+  } catch (error) {
+    console.error('Failed to open file:', error);
+  } finally {
+    opening.value = false;
+  }
 }
 
 async function onLoadExample() {
@@ -119,6 +132,7 @@ defineExpose({
   onLoadExample,
   showWizard: () => { showWizard.value = true; },
   showTemplates: () => { showTemplates.value = true; },
+  isOpening: () => opening.value, // 暴露 opening 状态，用于防重复调用
 });
 </script>
 

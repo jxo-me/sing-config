@@ -16,7 +16,7 @@ import { currentConfig, errorCount, lastValidation, toPrettyJson, loadFromText, 
 import { useI18n } from '../i18n';
 import { runPreflightCheck, type PreflightIssue } from '../lib/preflight';
 import { localizeErrorMessage, editorErrors, editorValidationState } from '../lib/codemirror-json-schema';
-import { setupMenuHandlers, setTopbarRef, setEditorRef } from '../lib/menu-handler';
+import { setupMenuHandlers, cleanupMenuHandlers, setTopbarRef, setEditorRef } from '../lib/menu-handler';
 
 const { t, currentLocale, setLocale } = useI18n();
 
@@ -49,7 +49,7 @@ watch(currentConfig, async () => {
 
 const preflightIssues = ref<PreflightIssue[]>([]);
 const showPreflight = ref(false);
-const topbarRef = ref<{ onSave: () => Promise<void>; onSaveAs: () => Promise<void>; onOpen: () => Promise<void> } | null>(null);
+const topbarRef = ref<{ onSave: () => Promise<void>; onSaveAs: () => Promise<void>; onOpen: () => Promise<void>; isOpening?: () => boolean } | null>(null);
 
 const mode = ref<'json' | 'form'>('json');
 const activeForm = ref<'log' | 'dns' | 'ntp' | 'certificate' | 'endpoints' | 'inbounds' | 'outbounds' | 'route' | 'services' | 'experimental'>('dns');
@@ -186,14 +186,16 @@ function handleKeyboardShortcuts(event: KeyboardEvent) {
     return;
   }
   
-  // Ctrl+O / Cmd+O: 打开
-  if ((event.ctrlKey || event.metaKey) && event.key === 'o') {
-    event.preventDefault();
-    if (topbarRef.value) {
-      topbarRef.value.onOpen();
-    }
-    return;
-  }
+  // Ctrl+O / Cmd+O: 打开（已由菜单系统处理，这里不需要重复处理）
+  // 注意：菜单系统已经处理了 CmdOrCtrl+O，如果在这里也处理会导致重复调用
+  // 如果需要在没有菜单的场景下使用，可以保留，但需要添加防重复机制
+  // if ((event.ctrlKey || event.metaKey) && event.key === 'o') {
+  //   event.preventDefault();
+  //   if (topbarRef.value) {
+  //     topbarRef.value.onOpen();
+  //   }
+  //   return;
+  // }
   
   // Ctrl+Z / Cmd+Z: 撤销（当编辑器在 JSON 模式时）
   if ((event.ctrlKey || event.metaKey) && !event.shiftKey && (event.key === 'z' || event.key === 'Z')) {
@@ -322,6 +324,8 @@ onBeforeUnmount(() => {
     window.removeEventListener('update-json-text', formatTextHandler);
   }
   window.removeEventListener('format-json', handleFormat);
+  // 清理菜单事件监听器
+  cleanupMenuHandlers();
 });
 
 // 保存当前模式的滚动位置
