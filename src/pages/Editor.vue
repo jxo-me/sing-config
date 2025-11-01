@@ -186,16 +186,17 @@ function handleKeyboardShortcuts(event: KeyboardEvent) {
     return;
   }
   
-  // Ctrl+O / Cmd+O: 打开（已由菜单系统处理，这里不需要重复处理）
-  // 注意：菜单系统已经处理了 CmdOrCtrl+O，如果在这里也处理会导致重复调用
-  // 如果需要在没有菜单的场景下使用，可以保留，但需要添加防重复机制
-  // if ((event.ctrlKey || event.metaKey) && event.key === 'o') {
-  //   event.preventDefault();
-  //   if (topbarRef.value) {
-  //     topbarRef.value.onOpen();
-  //   }
-  //   return;
-  // }
+  // Ctrl+O / Cmd+O: 打开文件（作为菜单系统的后备）
+  if ((event.ctrlKey || event.metaKey) && (event.key === 'o' || event.key === 'O')) {
+    // 检查是否已经在打开中，防止重复调用
+    if (topbarRef.value?.isOpening?.()) {
+      event.preventDefault();
+      return;
+    }
+    event.preventDefault();
+    topbarRef.value?.onOpen?.();
+    return;
+  }
   
   // Ctrl+Z / Cmd+Z: 撤销（当编辑器在 JSON 模式时）
   if ((event.ctrlKey || event.metaKey) && !event.shiftKey && (event.key === 'z' || event.key === 'Z')) {
