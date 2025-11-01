@@ -350,6 +350,30 @@ defineExpose({
   border-left: 3px solid #fbbf24;
 }
 
+/* 错误提示气泡样式（与右侧栏保持一致） */
+:deep(.cm-tooltip-lint) {
+  background: #fef2f2 !important;
+  border: 1px solid #fecaca !important;
+  border-left: 3px solid #ef4444 !important;
+  border-radius: 6px !important;
+  padding: 12px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+  color: #dc2626 !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  font-weight: 500 !important;
+  max-width: 400px !important;
+}
+
+/* 工具提示箭头样式（如果需要） */
+:deep(.cm-tooltip-lint::before) {
+  border-color: transparent transparent #fecaca transparent !important;
+}
+
+:deep(.cm-tooltip-lint::after) {
+  border-color: transparent transparent #fef2f2 transparent !important;
+}
+
 /* 行号样式 */
 :deep(.cm-lineNumbers) {
   min-width: 30px;

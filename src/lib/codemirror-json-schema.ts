@@ -518,14 +518,14 @@ function createWrappedLinter(options: JSONValidationOptions) {
       
       // 重要：重写 renderMessage 以使用本地化后的消息
       // CodeMirror 使用 renderMessage 渲染气泡，而不是直接使用 message 字段
-      if (diag.renderMessage) {
-        const localizedMsg = diag.message;
-        diag.renderMessage = () => {
-          const dom = document.createElement('div');
-          dom.textContent = localizedMsg;
-          return dom;
-        };
-      }
+      const localizedMsg = diag.message;
+      diag.renderMessage = () => {
+        const dom = document.createElement('div');
+        dom.textContent = localizedMsg;
+        // 添加样式类，与右侧栏保持一致
+        dom.style.cssText = 'color: #dc2626; font-size: 13px; line-height: 1.6; font-weight: 500;';
+        return dom;
+      };
     }
     
     // 立即使用本地化后的诊断同步更新 editorErrors（解决语言切换延迟问题）
