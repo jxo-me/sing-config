@@ -502,6 +502,20 @@ function createWrappedLinter(options: JSONValidationOptions) {
   return (view: EditorView): Diagnostic[] => {
     const diagnostics = baseLinter(view);
     
+    // 就地本地化诊断消息（用于鼠标悬停的气泡提示）
+    const formatError = createFormatError();
+    for (const diag of diagnostics) {
+      // 尝试从诊断中提取原始错误对象并重新格式化
+      // codemirror-json-schema 可能在诊断的某个字段中保存了原始错误
+      const originalError = (diag as any).originalError;
+      if (originalError) {
+        diag.message = formatError(originalError);
+      } else {
+        // 否则使用本地化现有消息
+        diag.message = localizeErrorMessage(diag.message);
+      }
+    }
+    
     // 同时进行独立验证以获取完整的路径信息（异步执行，不阻塞诊断返回）
     // 使用独立验证的结果更新 editorErrors
     (async () => {
