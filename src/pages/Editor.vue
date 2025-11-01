@@ -769,9 +769,42 @@ async function gotoError(path: string) {
   overflow: hidden; /* 确保外层无滚动条 */
   position: relative;
 }
-.mode-switcher { display: flex; gap: 4px; padding: 8px; border-bottom: 1px solid var(--border, #e5e7eb); flex-shrink: 0; }
-.mode-switcher button { padding: 4px 12px; background: transparent; border: 1px solid var(--border, #e5e7eb); cursor: pointer; }
-.mode-switcher button.active { background: var(--brand, #3b82f6); color: white; border-color: var(--brand, #3b82f6); }
+.mode-switcher { 
+  display: flex; 
+  gap: 8px; 
+  padding: 12px 16px; 
+  border-bottom: 1px solid var(--border, #e5e7eb); 
+  flex-shrink: 0; 
+  background: var(--bg-app, #ffffff);
+}
+.mode-switcher button { 
+  padding: 8px 20px; 
+  background: transparent; 
+  border: 1px solid var(--border, #e5e7eb); 
+  border-radius: 6px;
+  cursor: pointer; 
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #333);
+  transition: all 0.2s ease;
+  min-width: 80px;
+}
+.mode-switcher button:hover { 
+  background: var(--bg-hover, #f5f5f5); 
+  border-color: var(--border-hover, #d1d5db);
+  transform: translateY(-1px);
+}
+.mode-switcher button.active { 
+  background: var(--brand, #3b82f6); 
+  color: white; 
+  border-color: var(--brand, #3b82f6);
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+.mode-switcher button.active:hover {
+  background: var(--brand-hover, #2563eb);
+  border-color: var(--brand-hover, #2563eb);
+  transform: translateY(-1px);
+}
 .body { 
   flex: 1; 
   display: flex; 
