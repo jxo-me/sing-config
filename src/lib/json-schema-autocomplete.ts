@@ -1472,10 +1472,23 @@ export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig
           trigger: context.explicit,
           activateOnTyping: config.activateOnTyping,
           delay: config.delay,
+          '触发方式': context.explicit ? '手动触发（Enter/Tab/Ctrl+Space）' : '自动触发（输入）',
         });
-        const result = await jsonSchemaAutocomplete(context);
-        console.log('[Autocomplete] override 函数返回:', result ? `${result.options.length} 个选项` : 'null');
-        return result;
+        
+        try {
+          const result = await jsonSchemaAutocomplete(context);
+          console.log('[Autocomplete] override 函数返回:', {
+            '有结果': !!result,
+            '选项数量': result ? result.options.length : 0,
+            'from': result?.from,
+            'to': result?.to,
+            '选项标签': result ? result.options.map(o => o.label).slice(0, 5) : [],
+          });
+          return result;
+        } catch (error) {
+          console.error('[Autocomplete] override 函数执行失败:', error);
+          return null;
+        }
       },
     ],
   });
@@ -1490,6 +1503,16 @@ export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig
   const enterAutocompleteCommand = (view: any) => {
     const state = view.state;
     const pos = state.selection.main.head;
+    const line = state.doc.lineAt(pos);
+    const beforeCursor = line.text.substring(0, pos - line.from);
+    
+    console.log('[Autocomplete] Enter 键按下，开始检查:', {
+      pos,
+      lineNumber: line.number,
+      beforeCursor,
+      '文档长度': state.doc.length,
+      '启用补全': config.enabled,
+    });
     
     // 创建临时的 CompletionContext 来重用现有的上下文判断逻辑
     // 使用类型断言来创建最小化的 CompletionContext
@@ -1507,8 +1530,9 @@ export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig
     const isProperty = isPropertyNameContext(tempContext);
     const isValue = isValueContext(tempContext);
     
-    console.log('[Autocomplete] Enter 键按下，检查是否应该触发补全:', {
+    console.log('[Autocomplete] Enter 键上下文判断结果:', {
       pos,
+      beforeCursor,
       isProperty,
       isValue,
       '应该触发': isProperty || isValue,
@@ -1522,9 +1546,19 @@ export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig
         '触发原因': isProperty ? '属性名位置' : '属性值位置',
       });
       
-      // 使用 CodeMirror 的 startCompletion 命令触发补全
-      // 这会创建一个新的 CompletionContext 并调用 override 函数
-      return startCompletion(view);
+      try {
+        // 使用 CodeMirror 的 startCompletion 命令触发补全
+        // 这会创建一个新的 CompletionContext 并调用 override 函数
+        const result = startCompletion(view);
+        console.log('[Autocomplete] Enter 键 startCompletion 结果:', {
+          result,
+          '是否成功': result !== false,
+        });
+        return result;
+      } catch (error) {
+        console.error('[Autocomplete] Enter 键触发补全失败:', error);
+        return false;
+      }
     }
     
     console.log('[Autocomplete] Enter 键：不满足补全条件，执行默认行为（插入换行）');

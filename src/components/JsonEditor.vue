@@ -137,9 +137,30 @@ async function buildExtensions(): Promise<Extension[]> {
   
   // Tab 键触发补全（移除缩进功能）
   const tabAutocompleteCommand = (view: any) => {
-    // 直接触发补全，不需要检查上下文
-    console.log('[JsonEditor] Tab 键按下，触发补全');
-    return startCompletion(view);
+    const state = view.state;
+    const pos = state.selection.main.head;
+    const line = state.doc.lineAt(pos);
+    const beforeCursor = line.text.substring(0, pos - line.from);
+    
+    console.log('[JsonEditor] Tab 键按下，准备触发补全:', {
+      pos,
+      lineNumber: line.number,
+      beforeCursor,
+      '文档长度': state.doc.length,
+      '启用补全': settings.enableAutocomplete,
+    });
+    
+    try {
+      const result = startCompletion(view);
+      console.log('[JsonEditor] Tab 键触发补全结果:', {
+        result,
+        '是否成功': result !== false,
+      });
+      return result;
+    } catch (error) {
+      console.error('[JsonEditor] Tab 键触发补全失败:', error);
+      return false;
+    }
   };
   
   // 移除 indentWithTab，添加 Tab 键补全
