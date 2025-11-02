@@ -19,12 +19,8 @@ import { settings, getAutocompleteSchemaPath } from '../stores/settings';
 
 const { currentLocale } = useI18n();
 
-// 强制输出日志（使用多种方式确保可见）
+// 组件初始化日志
 console.log('%c[JsonEditor] 组件初始化开始', 'color: blue; font-weight: bold;');
-console.info('[JsonEditor] 组件初始化开始 (info)');
-console.warn('[JsonEditor] 组件初始化开始 (warn)');
-console.error('[JsonEditor] 组件初始化开始 (error)'); // 故意使用 error 级别确保可见
-
 console.log('[JsonEditor] settings 对象:', settings);
 console.log('[JsonEditor] enableAutocomplete 值:', settings?.enableAutocomplete);
 

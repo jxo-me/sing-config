@@ -187,12 +187,8 @@ watch(
 // 初始化：加载保存的设置
 loadSettings();
 
-// 强制输出日志（使用多种方式确保可见）
+// 设置模块加载日志
 console.log('%c[Settings] 设置模块已加载', 'color: green; font-weight: bold;');
-console.info('[Settings] 设置模块已加载 (info)');
-console.warn('[Settings] 设置模块已加载 (warn)');
-console.error('[Settings] 设置模块已加载 (error)'); // 故意使用 error 级别确保可见
-
 console.log('[Settings] enableAutocomplete 默认值:', settings.enableAutocomplete);
 console.log('[Settings] 当前 enableAutocomplete 值:', settings.enableAutocomplete);
 
