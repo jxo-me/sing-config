@@ -752,12 +752,34 @@ function isPropertyNameContext(context: CompletionContext): boolean {
     console.log('[Autocomplete] 文本检查:', { before, after });
     
     // 检查是否在 { 之后或 , 之后，准备输入属性名
-    // 改进正则：匹配 { 或 , 后面，可能是空白、引号，或者直接是字符（属性名）
-    // 但不能包含 : (冒号，说明已经是值了)
+    // 简化逻辑：检查是否以 { 或 , 开头（可能带空白和引号），后面跟非冒号字符
+    // 允许的情况：
+    // - { 或 {  或 {"  - 对象开始
+    // - {xxx 或 {"xxx  - 属性名部分输入
+    // - {xxx} 或 {"xxx"} - 属性名输入完成（但还没冒号）
+    // - ,xxx 或 ,"xxx  - 逗号后的新属性
+    
+    // 方法1：简单的正则匹配
     if (before.match(/[{,]\s*"?[^:}]*$/)) {
       console.log('[Autocomplete] 文本匹配：在对象开始或逗号后');
       return true;
     }
+    
+    // 方法2：更精确的匹配 - 提取 { 或 , 后的内容
+    const afterBraceOrComma = before.replace(/^.*([{,])/, '$1');
+    if (afterBraceOrComma.startsWith('{') || afterBraceOrComma.startsWith(',')) {
+      const content = afterBraceOrComma.substring(1).trim();
+      // 检查是否有引号
+      const hasQuote = content.startsWith('"') || content.startsWith("'");
+      const actualContent = hasQuote ? content.substring(1) : content;
+      
+      // 如果没有冒号，说明还在输入属性名或值之前
+      if (!actualContent.includes(':')) {
+        console.log('[Autocomplete] 文本匹配：属性名部分输入，内容:', actualContent);
+        return true;
+      }
+    }
+    
     return false;
   }
   
@@ -804,15 +826,32 @@ function isPropertyNameContext(context: CompletionContext): boolean {
     console.log('[Autocomplete] JsonText 文本检查:', { before, after });
     
     // 检查是否在 { 之后或 , 之后，准备输入属性名
-    // 改进正则：匹配 { 或 , 后面，可能是空白、引号，或者直接是字符（属性名）
-    // 但不能包含 : (冒号，说明已经是值了) 或 } (右括号，说明对象结束)
-    // 匹配情况：{ 或 {  或 {" 或 {xxx (但 xxx 不能包含 :)
+    // 允许的情况：
+    // 1. { 或 {  或 {"  - 对象开始
+    // 2. {xxx 或 {"xxx  - 属性名部分输入（xxx 不能包含 :）
+    // 3. {xxx} 或 {"xxx"} - 属性名输入完成（但还没冒号）
+    // 4. ,xxx 或 ,"xxx  - 逗号后的新属性
+    
+    // 方法1：简单的正则匹配 - 检查是否以 { 或 , 开头，后面跟非冒号字符
     if (before.match(/[{,]\s*"?[^:}]*$/)) {
-      console.log('[Autocomplete] JsonText 文本匹配：在对象开始或逗号后');
+      console.log('[Autocomplete] JsonText 文本匹配：在对象开始或逗号后（正则1）');
       return true;
     }
     
-    // 额外检查：如果光标正好在 { 后面（可能没有空格）
+    // 方法2：提取最后一个 { 或 , 后的内容
+    const lastBraceIndex = Math.max(before.lastIndexOf('{'), before.lastIndexOf(','));
+    if (lastBraceIndex >= 0) {
+      const afterLastBrace = before.substring(lastBraceIndex + 1).trim();
+      // 移除可能的引号
+      const content = afterLastBrace.replace(/^["']|["']$/g, '');
+      // 如果没有冒号，说明还在输入属性名
+      if (!content.includes(':')) {
+        console.log('[Autocomplete] JsonText 文本匹配：在对象开始或逗号后（方法2），内容:', content);
+        return true;
+      }
+    }
+    
+    // 方法3：额外检查：如果光标正好在 { 或 , 后面（可能没有空格）
     if (before.endsWith('{') || before.match(/[{,]\s*$/)) {
       console.log('[Autocomplete] JsonText 额外匹配：光标在 { 或 , 后面');
       return true;
