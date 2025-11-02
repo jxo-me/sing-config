@@ -2,7 +2,7 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { EditorView, lineNumbers } from '@codemirror/view';
 import { EditorState, Extension } from '@codemirror/state';
-import { json } from '@codemirror/lang-json';
+// import { json } from '@codemirror/lang-json'; // 临时禁用用于测试
 import { foldGutter, foldedRanges, foldEffect } from '@codemirror/language';
 import { bracketMatching } from '@codemirror/language';
 import { highlightSelectionMatches, searchKeymap, openSearchPanel } from '@codemirror/search';
@@ -10,8 +10,8 @@ import { history, defaultKeymap, indentWithTab, undo, redo } from '@codemirror/c
 // import { indentOnInput, indentUnit } from '@codemirror/language'; // 临时禁用用于测试
 import { keymap } from '@codemirror/view';
 import { closeBrackets } from '@codemirror/autocomplete';
-import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
-import { tags as t } from '@lezer/highlight';
+// import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'; // 临时禁用用于测试
+// import { tags as t } from '@lezer/highlight'; // 临时禁用用于测试
 // import { jsonSchema, jsonSchemaSync } from '../lib/codemirror-json-schema'; // 临时关闭用于测试
 import { contextMenu } from '../lib/codemirror-context-menu';
 import { jsonSchemaAutocompleteExtension } from '../lib/json-schema-autocomplete';
@@ -52,17 +52,17 @@ watch(currentLocale, () => {
   }
 });
 
-// JSON 语法高亮样式
-const jsonHighlightStyle = HighlightStyle.define([
-  { tag: t.string, color: '#0ea5e9' }, // 字符串：蓝色
-  { tag: t.number, color: '#8b5cf6' }, // 数字：紫色
-  { tag: t.bool, color: '#f59e0b' }, // 布尔值：橙色
-  { tag: t.null, color: '#ef4444' }, // null：红色
-  { tag: t.propertyName, color: '#10b981', fontWeight: 'bold' }, // 属性名：绿色粗体
-  { tag: t.punctuation, color: '#6b7280' }, // 标点符号：灰色
-  { tag: t.bracket, color: '#6b7280' }, // 括号：灰色
-  { tag: t.separator, color: '#6b7280' }, // 分隔符：灰色
-]);
+// JSON 语法高亮样式 - 临时禁用用于测试
+// const jsonHighlightStyle = HighlightStyle.define([
+//   { tag: t.string, color: '#0ea5e9' }, // 字符串：蓝色
+//   { tag: t.number, color: '#8b5cf6' }, // 数字：紫色
+//   { tag: t.bool, color: '#f59e0b' }, // 布尔值：橙色
+//   { tag: t.null, color: '#ef4444' }, // null：红色
+//   { tag: t.propertyName, color: '#10b981', fontWeight: 'bold' }, // 属性名：绿色粗体
+//   { tag: t.punctuation, color: '#6b7280' }, // 标点符号：灰色
+//   { tag: t.bracket, color: '#6b7280' }, // 括号：灰色
+//   { tag: t.separator, color: '#6b7280' }, // 分隔符：灰色
+// ]);
 
 onMounted(async () => {
   if (!container.value) return;
@@ -77,8 +77,8 @@ onMounted(async () => {
     // indentOnInput(), // 临时禁用自动缩进用于测试
     // indentUnit.of('  '), // 临时禁用自动缩进用于测试
     highlightSelectionMatches(),
-    json(), // JSON 语言支持（包含语法高亮）
-    syntaxHighlighting(jsonHighlightStyle), // 应用语法高亮样式
+    // json(), // JSON 语言支持（包含语法高亮）- 临时禁用用于测试
+    // syntaxHighlighting(jsonHighlightStyle), // 应用语法高亮样式 - 临时禁用用于测试
     // jsonSchemaSync(), // JSON Schema 验证（占位，后续更新）- 临时关闭用于测试
     jsonSchemaAutocompleteExtension(), // JSON Schema 自动补全
     contextMenu(), // 自定义多语言右键菜单
