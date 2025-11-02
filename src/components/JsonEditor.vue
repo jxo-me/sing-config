@@ -89,6 +89,7 @@ async function buildExtensions(): Promise<Extension[]> {
       enabled: true,
       activateOnTyping: settings.autocompleteActivateOnTyping,
       delay: settings.autocompleteDelay,
+      schemaPath: settings.schemaFilePath,
     }));
   }
   

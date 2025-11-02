@@ -1,18 +1,31 @@
 import { CompletionContext, CompletionResult, Completion, autocompletion } from '@codemirror/autocomplete';
 import { syntaxTree } from '@codemirror/language';
 import { Extension } from '@codemirror/state';
-import { loadSchema } from './schema';
+import { loadSchema, setSchemaFilePath } from './schema';
 import { getCurrentLocale } from './codemirror-json-schema';
 
 type JsonSchema = Record<string, unknown>;
 
 let cachedSchema: JsonSchema | null = null;
 let schemaLoadPromise: Promise<JsonSchema> | null = null;
+let lastSchemaPath: string | null = null;
+let currentSchemaPath: string | undefined = undefined;
 
-async function getSchema(): Promise<JsonSchema> {
+async function getSchema(schemaPath?: string): Promise<JsonSchema> {
+  // 使用传入的路径，或使用当前设置的路径
+  const path = schemaPath || currentSchemaPath;
+  
+  // 如果路径变化，清除缓存并重新加载
+  if (path && path !== lastSchemaPath) {
+    cachedSchema = null;
+    schemaLoadPromise = null;
+    lastSchemaPath = path;
+    setSchemaFilePath(path);
+  }
+  
   if (cachedSchema) return cachedSchema;
   if (!schemaLoadPromise) {
-    schemaLoadPromise = loadSchema();
+    schemaLoadPromise = loadSchema(path);
     cachedSchema = await schemaLoadPromise;
     schemaLoadPromise = null;
   } else {
@@ -846,6 +859,7 @@ export interface AutocompleteConfig {
   enabled: boolean; // 是否启用自动补全
   activateOnTyping: boolean; // 输入时自动触发
   delay: number; // 延迟时间（毫秒）
+  schemaPath?: string; // Schema 文件路径（可选）
 }
 
 /**
@@ -855,6 +869,7 @@ const defaultAutocompleteConfig: AutocompleteConfig = {
   enabled: true,
   activateOnTyping: true,
   delay: 0,
+  schemaPath: undefined,
 };
 
 /**
@@ -864,6 +879,16 @@ export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig
   // 如果禁用，返回空扩展
   if (!config.enabled) {
     return [];
+  }
+  
+  // 更新当前使用的 schema 路径
+  if (config.schemaPath !== undefined) {
+    currentSchemaPath = config.schemaPath;
+    // 如果路径变化，清除缓存
+    if (config.schemaPath !== lastSchemaPath) {
+      cachedSchema = null;
+      schemaLoadPromise = null;
+    }
   }
   
   return [autocompletion({
@@ -882,5 +907,15 @@ export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig
  */
 export function jsonSchemaAutocompleteExtension() {
   return createJsonSchemaAutocompleteExtension();
+}
+
+/**
+ * 清理自动补全 Schema 缓存（用于配置变化时的重建）
+ */
+export function clearAutocompleteSchemaCache() {
+  cachedSchema = null;
+  schemaLoadPromise = null;
+  lastSchemaPath = null;
+  currentSchemaPath = undefined;
 }
 
