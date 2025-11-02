@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { EditorView, lineNumbers } from '@codemirror/view';
-import { EditorState, Extension, StateEffect } from '@codemirror/state';
+import { EditorState, Extension } from '@codemirror/state';
 import { json } from '@codemirror/lang-json';
 import { foldGutter, foldedRanges, foldEffect } from '@codemirror/language';
 import { bracketMatching } from '@codemirror/language';
@@ -12,7 +12,7 @@ import { keymap } from '@codemirror/view';
 import { closeBrackets } from '@codemirror/autocomplete';
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
-import { jsonSchema, jsonSchemaSync } from '../lib/codemirror-json-schema';
+// import { jsonSchema, jsonSchemaSync } from '../lib/codemirror-json-schema'; // 临时关闭用于测试
 import { contextMenu } from '../lib/codemirror-context-menu';
 import { jsonSchemaAutocompleteExtension } from '../lib/json-schema-autocomplete';
 import { useI18n } from '../i18n';
@@ -79,7 +79,7 @@ onMounted(async () => {
     highlightSelectionMatches(),
     json(), // JSON 语言支持（包含语法高亮）
     syntaxHighlighting(jsonHighlightStyle), // 应用语法高亮样式
-    jsonSchemaSync(), // JSON Schema 验证（占位，后续更新）
+    // jsonSchemaSync(), // JSON Schema 验证（占位，后续更新）- 临时关闭用于测试
     jsonSchemaAutocompleteExtension(), // JSON Schema 自动补全
     contextMenu(), // 自定义多语言右键菜单
     keymap.of([
@@ -176,12 +176,12 @@ onMounted(async () => {
     parent: container.value,
   });
 
-  // 异步加载 schema 并更新扩展
-  const schemaExtensions = await jsonSchema();
-  // 使用 StateEffect.appendConfig 来添加新扩展
-  editor.dispatch({
-    effects: StateEffect.appendConfig.of(schemaExtensions),
-  });
+  // 异步加载 schema 并更新扩展 - 临时关闭用于测试
+  // const schemaExtensions = await jsonSchema();
+  // // 使用 StateEffect.appendConfig 来添加新扩展
+  // editor.dispatch({
+  //   effects: StateEffect.appendConfig.of(schemaExtensions),
+  // });
 
   // 确保编辑器在容器大小变化时自动调整
   if (container.value) {
