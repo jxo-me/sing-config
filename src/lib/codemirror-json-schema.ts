@@ -788,8 +788,14 @@ function needsRefreshWithLocale(vu: ViewUpdate): boolean {
   if (localeChanged) {
     lastLocale = currentLocale;
   }
-  // 如果语言变化或 schema 变化，都需要刷新
-  return localeChanged || handleRefresh(vu);
+  // 如果语言变化，立即刷新
+  if (localeChanged) {
+    return true;
+  }
+  // 对于文档变更，延迟刷新（通过 delay 选项控制）
+  // handleRefresh 会检查文档是否变更，如果变更则返回 true
+  // 但我们通过 delay 延迟实际执行，避免与手动编辑冲突
+  return handleRefresh(vu);
 }
 
 export async function jsonSchema(): Promise<Extension[]> {
@@ -807,8 +813,10 @@ export async function jsonSchema(): Promise<Extension[]> {
       // 设置 schema 状态
       ...stateExtensions(schema),
       // 添加 linter（包装以提取错误）
+      // delay: 800ms - 文档变更后延迟 800ms 再运行 linter，避免与手动编辑冲突
       linter(createWrappedLinter(options), {
         needsRefresh: needsRefreshWithLocale,
+        delay: 800, // 延迟 800ms 再验证
       }),
     ];
   })();

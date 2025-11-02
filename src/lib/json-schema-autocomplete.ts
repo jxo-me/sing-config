@@ -233,6 +233,202 @@ function getJsonPath(state: CompletionContext['state'], pos: number): string[] {
   return path;
 }
 
+// 根据 schema 获取默认值
+function getDefaultValue(schema: JsonSchema, rootSchema: JsonSchema): string {
+  // 处理 $ref
+  let currentSchema = schema;
+  if (schema.$ref && typeof schema.$ref === 'string') {
+    currentSchema = resolveRef(schema, schema.$ref, rootSchema) || schema;
+  }
+  
+  // 检查是否有默认值
+  if (currentSchema.default !== undefined) {
+    return JSON.stringify(currentSchema.default);
+  }
+  
+  // 检查枚举值，使用第一个作为默认值
+  if (currentSchema.enum && Array.isArray(currentSchema.enum) && currentSchema.enum.length > 0) {
+    return JSON.stringify(currentSchema.enum[0]);
+  }
+  
+  // 根据类型提供默认值
+  const type = currentSchema.type;
+  if (Array.isArray(type)) {
+    // 如果是类型数组，使用第一个类型
+    if (type.length > 0 && typeof type[0] === 'string') {
+      return getDefaultValueByType(type[0]);
+    }
+  } else if (typeof type === 'string') {
+    return getDefaultValueByType(type);
+  }
+  
+  // 处理 oneOf/anyOf/allOf - 使用第一个变体的默认值
+  if (currentSchema.oneOf && Array.isArray(currentSchema.oneOf) && currentSchema.oneOf.length > 0) {
+    const firstVariant = currentSchema.oneOf[0] as JsonSchema;
+    if (firstVariant.$ref && typeof firstVariant.$ref === 'string') {
+      const resolved = resolveRef(firstVariant, firstVariant.$ref, rootSchema);
+      if (resolved && resolved.type) {
+        if (Array.isArray(resolved.type) && resolved.type.length > 0 && typeof resolved.type[0] === 'string') {
+          return getDefaultValueByType(resolved.type[0]);
+        } else if (typeof resolved.type === 'string') {
+          return getDefaultValueByType(resolved.type);
+        }
+      }
+    }
+    if (firstVariant.type) {
+      if (Array.isArray(firstVariant.type) && firstVariant.type.length > 0 && typeof firstVariant.type[0] === 'string') {
+        return getDefaultValueByType(firstVariant.type[0]);
+      } else if (typeof firstVariant.type === 'string') {
+        return getDefaultValueByType(firstVariant.type);
+      }
+    }
+  }
+  
+  if (currentSchema.anyOf && Array.isArray(currentSchema.anyOf) && currentSchema.anyOf.length > 0) {
+    const firstVariant = currentSchema.anyOf[0] as JsonSchema;
+    if (firstVariant.$ref && typeof firstVariant.$ref === 'string') {
+      const resolved = resolveRef(firstVariant, firstVariant.$ref, rootSchema);
+      if (resolved && resolved.type) {
+        if (Array.isArray(resolved.type) && resolved.type.length > 0 && typeof resolved.type[0] === 'string') {
+          return getDefaultValueByType(resolved.type[0]);
+        } else if (typeof resolved.type === 'string') {
+          return getDefaultValueByType(resolved.type);
+        }
+      }
+    }
+    if (firstVariant.type) {
+      if (Array.isArray(firstVariant.type) && firstVariant.type.length > 0 && typeof firstVariant.type[0] === 'string') {
+        return getDefaultValueByType(firstVariant.type[0]);
+      } else if (typeof firstVariant.type === 'string') {
+        return getDefaultValueByType(firstVariant.type);
+      }
+    }
+  }
+  
+  if (currentSchema.allOf && Array.isArray(currentSchema.allOf) && currentSchema.allOf.length > 0) {
+    const firstVariant = currentSchema.allOf[0] as JsonSchema;
+    if (firstVariant.$ref && typeof firstVariant.$ref === 'string') {
+      const resolved = resolveRef(firstVariant, firstVariant.$ref, rootSchema);
+      if (resolved && resolved.type) {
+        if (Array.isArray(resolved.type) && resolved.type.length > 0 && typeof resolved.type[0] === 'string') {
+          return getDefaultValueByType(resolved.type[0]);
+        } else if (typeof resolved.type === 'string') {
+          return getDefaultValueByType(resolved.type);
+        }
+      }
+    }
+    if (firstVariant.type) {
+      if (Array.isArray(firstVariant.type) && firstVariant.type.length > 0 && typeof firstVariant.type[0] === 'string') {
+        return getDefaultValueByType(firstVariant.type[0]);
+      } else if (typeof firstVariant.type === 'string') {
+        return getDefaultValueByType(firstVariant.type);
+      }
+    }
+  }
+  
+  // 未知类型，返回 null
+  return 'null';
+}
+
+// 根据类型获取默认值
+function getDefaultValueByType(type: string): string {
+  switch (type) {
+    case 'string':
+      return '""'; // 空字符串
+    case 'number':
+      return '0'; // 数字 0
+    case 'integer':
+      return '0'; // 整数 0
+    case 'boolean':
+      return 'false'; // 布尔值 false
+    case 'null':
+      return 'null'; // null
+    case 'array':
+      return '[]'; // 空数组
+    case 'object':
+      return '{}'; // 空对象
+    default:
+      return 'null'; // 未知类型默认 null
+  }
+}
+
+// 创建智能属性名补全应用函数
+function createPropertyApply(key: string, propSchema?: JsonSchema, rootSchema?: JsonSchema): (view: any, _completion: any, from: number, to: number) => void {
+  return (view, _completion, from, to) => {
+    const state = view.state;
+    const doc = state.doc;
+    const line = doc.lineAt(from);
+    const beforeCursor = line.text.substring(0, from - line.from);
+    
+    // 检查是否已有引号
+    const hasQuote = beforeCursor.endsWith('"') || beforeCursor.endsWith("'");
+    // 检查是否在字符串中间（已有起始引号）
+    const quoteMatches = beforeCursor.match(/["']/g);
+    const isInString = quoteMatches && quoteMatches.length % 2 !== 0;
+    
+    let insertText: string;
+    
+    if (hasQuote || isInString) {
+      // 如果已有引号，只插入键名（不包含引号）
+      insertText = key;
+    } else {
+      // 如果没有引号，插入带引号的键名
+      insertText = `"${key}"`;
+    }
+    
+    // 如果提供了 schema，自动插入默认值
+    if (propSchema && rootSchema) {
+      const defaultValue = getDefaultValue(propSchema, rootSchema);
+      // 在冒号后插入默认值（如果不是空对象/空数组的话）
+      if (defaultValue !== '{}' && defaultValue !== '[]') {
+        insertText += `: ${defaultValue}`;
+      }
+    }
+    
+    // 插入文本
+    view.dispatch({
+      changes: { from, to, insert: insertText },
+      selection: { anchor: from + insertText.length },
+    });
+  };
+}
+
+// 创建智能值补全应用函数
+function createValueApply(valueStr: string, isString: boolean): (view: any, _completion: any, from: number, to: number) => void {
+  return (view, _completion, from, to) => {
+    const state = view.state;
+    const doc = state.doc;
+    const line = doc.lineAt(from);
+    const beforeCursor = line.text.substring(0, from - line.from);
+    
+    let insertText: string;
+    
+    if (isString) {
+      // 字符串值：检查是否已有引号
+      const hasQuote = beforeCursor.endsWith('"') || beforeCursor.endsWith("'");
+      const quoteMatches = beforeCursor.match(/["']/g);
+      const isInString = quoteMatches && quoteMatches.length % 2 !== 0;
+      
+      if (hasQuote || isInString) {
+        // 如果已有引号，移除 valueStr 中的引号（JSON.stringify 会包含引号）
+        insertText = valueStr.replace(/^"|"$/g, '');
+      } else {
+        // 如果没有引号，直接使用 JSON.stringify 的结果（已包含引号）
+        insertText = valueStr;
+      }
+    } else {
+      // 非字符串值：直接插入（如 true, false, null, 数字）
+      insertText = valueStr;
+    }
+    
+    // 插入文本
+    view.dispatch({
+      changes: { from, to, insert: insertText },
+      selection: { anchor: from + insertText.length },
+    });
+  };
+}
+
 // 从 schema 获取属性名补全
 function getPropertyCompletions(schema: JsonSchema, context: CompletionContext, rootSchema: JsonSchema = cachedSchema || {}): Completion[] {
   const completions: Completion[] = [];
@@ -323,6 +519,8 @@ function getPropertyCompletions(schema: JsonSchema, context: CompletionContext, 
       type: 'property',
       detail,
       info: description || undefined,
+      // 自定义应用逻辑：智能处理引号和默认值
+      apply: createPropertyApply(key, resolvedSchema, rootSchema),
     });
   }
   
@@ -370,6 +568,8 @@ function getPropertyCompletions(schema: JsonSchema, context: CompletionContext, 
               type: 'property',
               detail,
               info: description || undefined,
+              // 自定义应用逻辑：智能处理引号和默认值
+              apply: createPropertyApply(key, resolvedSchema, rootSchema),
             });
           }
         }
@@ -420,6 +620,8 @@ function getPropertyCompletions(schema: JsonSchema, context: CompletionContext, 
               type: 'property',
               detail,
               info: description || undefined,
+              // 自定义应用逻辑：智能处理引号和默认值
+              apply: createPropertyApply(key, resolvedSchema, rootSchema),
             });
           }
         }
@@ -439,9 +641,12 @@ function getValueCompletions(schema: JsonSchema, _context: CompletionContext): C
   if (schema.enum && Array.isArray(schema.enum)) {
     for (const enumValue of schema.enum) {
       const valueStr = typeof enumValue === 'string' ? JSON.stringify(enumValue) : String(enumValue);
+      const isString = typeof enumValue === 'string';
       completions.push({
         label: valueStr,
         type: 'value',
+        // 自定义应用逻辑：智能处理引号
+        apply: createValueApply(valueStr, isString),
       });
     }
   }
@@ -449,22 +654,37 @@ function getValueCompletions(schema: JsonSchema, _context: CompletionContext): C
   // 常量值
   if (schema.const !== undefined) {
     const constStr = typeof schema.const === 'string' ? JSON.stringify(schema.const) : String(schema.const);
+    const isString = typeof schema.const === 'string';
     completions.push({
       label: constStr,
       type: 'value',
       detail: locale === 'zh' ? '常量值' : 'constant value',
+      // 自定义应用逻辑：智能处理引号
+      apply: createValueApply(constStr, isString),
     });
   }
   
   // 布尔值
   if (schema.type === 'boolean') {
-    completions.push({ label: 'true', type: 'value' });
-    completions.push({ label: 'false', type: 'value' });
+    completions.push({ 
+      label: 'true', 
+      type: 'value',
+      apply: createValueApply('true', false),
+    });
+    completions.push({ 
+      label: 'false', 
+      type: 'value',
+      apply: createValueApply('false', false),
+    });
   }
   
   // null 值
   if (schema.type === 'null' || (Array.isArray(schema.type) && schema.type.includes('null'))) {
-    completions.push({ label: 'null', type: 'value' });
+    completions.push({ 
+      label: 'null', 
+      type: 'value',
+      apply: createValueApply('null', false),
+    });
   }
   
   return completions;
