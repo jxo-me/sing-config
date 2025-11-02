@@ -6,9 +6,9 @@ import { json } from '@codemirror/lang-json';
 import { foldGutter, foldedRanges, foldEffect } from '@codemirror/language';
 import { bracketMatching, indentOnInput, indentUnit } from '@codemirror/language';
 import { highlightSelectionMatches, searchKeymap, openSearchPanel } from '@codemirror/search';
-import { history, defaultKeymap, undo, redo } from '@codemirror/commands';
+import { history, defaultKeymap, indentWithTab, undo, redo } from '@codemirror/commands';
 import { keymap } from '@codemirror/view';
-import { closeBrackets, startCompletion } from '@codemirror/autocomplete';
+import { closeBrackets } from '@codemirror/autocomplete';
 import { createJsonSchemaExtension } from '../lib/codemirror-json-schema';
 import { contextMenu } from '../lib/codemirror-context-menu';
 import { createJsonSchemaAutocompleteExtension } from '../lib/json-schema-autocomplete';
@@ -135,53 +135,9 @@ async function buildExtensions(): Promise<Extension[]> {
   extensions.push(json());
   extensions.push(contextMenu());
   
-  // Tab 键触发补全（移除缩进功能）
-  const tabAutocompleteCommand = (view: any) => {
-    const state = view.state;
-    const pos = state.selection.main.head;
-    const line = state.doc.lineAt(pos);
-    const beforeCursor = line.text.substring(0, pos - line.from);
-    
-    console.log('[JsonEditor] Tab 键按下，准备触发补全:', {
-      pos,
-      lineNumber: line.number,
-      beforeCursor,
-      '文档长度': state.doc.length,
-      '启用补全': settings.enableAutocomplete,
-    });
-    
-    try {
-      const result = startCompletion(view);
-      console.log('[JsonEditor] Tab 键触发补全结果:', {
-        result,
-        '是否成功': result !== false,
-      });
-      return result;
-    } catch (error) {
-      console.error('[JsonEditor] Tab 键触发补全失败:', error);
-      return false;
-    }
-  };
-  
-  // Tab 键触发补全（移除缩进功能）
-  // 注意：在 CodeMirror 6 中，keymap 的顺序很重要
-  // 后添加的 keymap 会覆盖先添加的相同按键处理
-  // 所以先把 defaultKeymap 和 searchKeymap 添加
-  extensions.push(keymap.of([...defaultKeymap, ...searchKeymap]));
-  
-  // 然后添加 Tab 键的处理，这样会覆盖 defaultKeymap 中可能存在的 Tab 处理
-  extensions.push(keymap.of([
-    {
-      key: 'Tab',
-      run: tabAutocompleteCommand,
-      // 可选：添加 shift 修饰键的处理
-      shift: () => {
-        // Shift+Tab 可以保留为取消缩进（如果需要）
-        console.log('[JsonEditor] Shift+Tab 按下，使用默认取消缩进行为');
-        return false; // 使用默认行为（取消缩进）
-      },
-    },
-  ]));
+  // 恢复 Tab 键缩进功能，移除补全触发
+  // defaultKeymap 中包含 indentWithTab，会自动处理 Tab 键缩进
+  extensions.push(keymap.of([indentWithTab, ...defaultKeymap, ...searchKeymap]));
   
   // 文档变更监听
   extensions.push(EditorView.updateListener.of((update) => {
