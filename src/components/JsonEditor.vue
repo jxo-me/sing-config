@@ -16,6 +16,7 @@ import { jsonSchema, jsonSchemaSync } from '../lib/codemirror-json-schema';
 import { contextMenu } from '../lib/codemirror-context-menu';
 import { jsonSchemaAutocompleteExtension } from '../lib/json-schema-autocomplete';
 import { useI18n } from '../i18n';
+import { settings } from '../stores/settings';
 
 const { currentLocale } = useI18n();
 
@@ -67,20 +68,40 @@ const jsonHighlightStyle = HighlightStyle.define([
 onMounted(async () => {
   if (!container.value) return;
 
-  // 先加载基础扩展
+  // 根据设置动态构建扩展
+  const conditionalExtensions: Extension[] = [];
+  
+  // 自动缩进（根据设置）
+  if (settings.autoIndent) {
+    conditionalExtensions.push(indentOnInput());
+    conditionalExtensions.push(indentUnit.of(' '.repeat(settings.indentSize)));
+  }
+  
+  // 高亮匹配（根据设置）
+  if (settings.autoHighlightSelectionMatches) {
+    conditionalExtensions.push(highlightSelectionMatches());
+  }
+  
+  // Schema 校验（根据设置）
+  if (settings.enableSchemaValidation) {
+    conditionalExtensions.push(jsonSchemaSync()); // TODO: 配置延迟
+  }
+  
+  // 自动补全（根据设置）
+  if (settings.enableAutocomplete) {
+    conditionalExtensions.push(jsonSchemaAutocompleteExtension()); // TODO: 配置延迟和触发
+  }
+
+  // 基础扩展
   const baseExtensions: Extension[] = [
     lineNumbers(),
     foldGutter(),
     bracketMatching(),
-    closeBrackets(),
+    ...(settings.autoCloseBrackets ? [closeBrackets()] : []),
     history(),
-    indentOnInput(),
-    indentUnit.of('  '), // 2 spaces
-    highlightSelectionMatches(),
+    ...conditionalExtensions, // 条件扩展
     json(), // JSON 语言支持（包含语法高亮）
     syntaxHighlighting(jsonHighlightStyle), // 应用语法高亮样式
-    jsonSchemaSync(), // JSON Schema 验证（占位，后续更新）
-    jsonSchemaAutocompleteExtension(), // JSON Schema 自动补全
     contextMenu(), // 自定义多语言右键菜单
     keymap.of([
       indentWithTab, // Tab 键缩进，Shift+Tab 取消缩进

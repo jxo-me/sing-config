@@ -6,6 +6,7 @@ import { loadFromText, toPrettyJson, runValidation, lastValidation, setLastSaved
 import { useI18n } from '../i18n';
 import TemplateLibrary from './TemplateLibrary.vue';
 import SetupWizard from './SetupWizard.vue';
+import EditorSettings from './EditorSettings.vue';
 
 const { t, currentLocale, setLocale } = useI18n();
 
@@ -13,6 +14,7 @@ const saving = ref(false);
 const showTemplates = ref(false);
 const showWizard = ref(false);
 const opening = ref(false); // 防止重复打开
+const settingsRef = ref<InstanceType<typeof EditorSettings> | null>(null);
 
 async function onNew() {
   // 重置配置为空对象
@@ -171,6 +173,9 @@ defineExpose({
       <button @click="showTemplates = true">{{ currentLocale === 'zh' ? '模板' : 'Templates' }}</button>
       <button @click="onSave" :disabled="saving">{{ t.common.save }}</button>
       <button @click="onSaveAs" :disabled="saving">{{ currentLocale === 'zh' ? '另存为' : 'Save As' }}</button>
+      <button @click="settingsRef?.open" class="settings-btn" :title="currentLocale === 'zh' ? '编辑器设置' : 'Editor Settings'">
+        ⚙️
+      </button>
     </div>
     <div class="topbar-right">
       <select :value="currentLocale" @change="setLocale(($event.target as HTMLSelectElement).value as 'zh' | 'en')" class="language-select">
@@ -199,6 +204,9 @@ defineExpose({
         </div>
       </div>
     </div>
+    
+    <!-- Editor Settings Component -->
+    <EditorSettings ref="settingsRef" />
   </div>
 </template>
 

@@ -19,8 +19,8 @@ import { editorErrors, editorValidationState } from '../lib/codemirror-json-sche
 import { setupMenuHandlers, cleanupMenuHandlers, setTopbarRef, setEditorRef } from '../lib/menu-handler';
 import { invoke } from '@tauri-apps/api/core';
 import { useResponsive } from '../composables/useResponsive';
-import { repairJson } from '../lib/json-repair';
-// import { isValidJson } from '../lib/json-repair'; // 临时禁用用于测试
+import { repairJson, isValidJson } from '../lib/json-repair';
+import { settings } from '../stores/settings';
 
 const { t, currentLocale, setLocale } = useI18n();
 
@@ -164,11 +164,11 @@ async function handleAutoRepair() {
   }
 }
 
-// 检查当前 JSON 是否需要修复 - 临时禁用用于测试
+// 检查当前 JSON 是否需要修复（根据设置）
 const needsRepair = computed(() => {
-  return false; // 临时禁用
-  // if (mode.value !== 'json') return false;
-  // return !isValidJson(text.value);
+  if (!settings.enableFormatDetection) return false;
+  if (mode.value !== 'json') return false;
+  return !isValidJson(text.value);
 });
 
 // 计算当前显示的错误（JSON 模式用编辑器错误，表单模式用 lastValidation）
@@ -775,18 +775,18 @@ async function gotoError(path: string) {
             <button 
               @click="handleAutoRepair" 
               class="repair-btn" 
-              v-if="mode === 'json' && needsRepair"
+              v-if="mode === 'json' && needsRepair && settings.showAutoRepairButton"
             >
               🔧 {{ currentLocale === 'zh' ? '自动修复' : 'Auto Repair' }}
             </button>
-            <div v-if="mode === 'json' && !needsRepair" class="validation-status">
+            <div v-if="mode === 'json' && !needsRepair && settings.enableSchemaValidation" class="validation-status">
               <span class="status-text">
                 {{ currentLocale === 'zh' 
                   ? `实时校验中... (${currentErrorCount} 个错误)` 
                   : `Real-time validation... (${currentErrorCount} errors)` }}
               </span>
             </div>
-            <div v-if="mode === 'json' && needsRepair" class="repair-status">
+            <div v-if="mode === 'json' && needsRepair && settings.showAutoRepairButton" class="repair-status">
               <span class="status-text">
                 ⚠️ {{ currentLocale === 'zh' 
                   ? '检测到无效的 JSON 格式，请点击"自动修复"按钮' 
@@ -906,18 +906,18 @@ async function gotoError(path: string) {
             <button 
               @click="handleAutoRepair" 
               class="repair-btn" 
-              v-if="mode === 'json' && needsRepair"
+              v-if="mode === 'json' && needsRepair && settings.showAutoRepairButton"
             >
               🔧 {{ currentLocale === 'zh' ? '自动修复' : 'Auto Repair' }}
             </button>
-            <div v-if="mode === 'json' && !needsRepair" class="validation-status">
+            <div v-if="mode === 'json' && !needsRepair && settings.enableSchemaValidation" class="validation-status">
               <span class="status-text">
                 {{ currentLocale === 'zh' 
                   ? `实时校验中... (${currentErrorCount} 个错误)` 
                   : `Real-time validation... (${currentErrorCount} errors)` }}
               </span>
             </div>
-            <div v-if="mode === 'json' && needsRepair" class="repair-status">
+            <div v-if="mode === 'json' && needsRepair && settings.showAutoRepairButton" class="repair-status">
               <span class="status-text">
                 ⚠️ {{ currentLocale === 'zh' 
                   ? '检测到无效的 JSON 格式，请点击"自动修复"按钮' 
