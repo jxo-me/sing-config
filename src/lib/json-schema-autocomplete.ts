@@ -13,22 +13,39 @@ let currentSchemaPath: string | undefined = undefined;
 
 async function getSchema(schemaPath?: string): Promise<JsonSchema> {
   // 使用传入的路径，或使用当前设置的路径
-  const path = schemaPath || currentSchemaPath;
+  const path = schemaPath || currentSchemaPath || '/schema.json';
+  
+  console.log('[Autocomplete] getSchema 调用:', { schemaPath, currentSchemaPath, resolvedPath: path });
   
   // 如果路径变化，清除缓存并重新加载
   if (path && path !== lastSchemaPath) {
+    console.log('[Autocomplete] 路径变化，清除缓存:', { oldPath: lastSchemaPath, newPath: path });
     cachedSchema = null;
     schemaLoadPromise = null;
     lastSchemaPath = path;
     setSchemaFilePath(path);
   }
   
-  if (cachedSchema) return cachedSchema;
+  if (cachedSchema) {
+    console.log('[Autocomplete] 使用缓存的 Schema');
+    return cachedSchema;
+  }
+  
   if (!schemaLoadPromise) {
-    schemaLoadPromise = loadSchema(path);
+    console.log('[Autocomplete] 开始加载 Schema:', path);
+    schemaLoadPromise = loadSchema(path)
+      .then(schema => {
+        console.log('[Autocomplete] Schema 加载成功:', Object.keys(schema).slice(0, 5));
+        return schema;
+      })
+      .catch(error => {
+        console.error('[Autocomplete] Schema 加载失败:', error);
+        throw error;
+      });
     cachedSchema = await schemaLoadPromise;
     schemaLoadPromise = null;
   } else {
+    console.log('[Autocomplete] 等待已有的 Schema 加载 Promise');
     cachedSchema = await schemaLoadPromise;
   }
   return cachedSchema;
@@ -789,13 +806,17 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
   // 确保 schema 已加载
   if (!cachedSchema) {
     try {
-      await getSchema();
-    } catch {
+      // 使用当前设置的 schema 路径
+      await getSchema(currentSchemaPath);
+    } catch (error) {
+      console.error('[Autocomplete] Schema 加载失败:', error);
+      console.error('[Autocomplete] Schema 路径:', currentSchemaPath);
       return null;
     }
   }
   
   if (!cachedSchema) {
+    console.warn('[Autocomplete] Schema 未加载，路径:', currentSchemaPath);
     return null;
   }
   
@@ -807,7 +828,17 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
   }
   
   // 判断是在属性名位置还是值位置
-  if (isPropertyNameContext(context)) {
+  const isProperty = isPropertyNameContext(context);
+  const isValue = isValueContext(context);
+  
+  console.log('[Autocomplete] 上下文判断:', {
+    jsonPath: path,
+    isProperty,
+    isValue,
+    hasCurrentSchema: !!currentSchema,
+  });
+  
+  if (isProperty) {
     // 属性名补全
     // 需要找到父级 schema
     const parentPath = path.slice(0, -1);
@@ -815,8 +846,11 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
       ? resolveSchemaPath(cachedSchema, parentPath, cachedSchema) 
       : cachedSchema;
     
+    console.log('[Autocomplete] 属性名补全，父级 Schema:', !!parentSchema);
+    
     if (parentSchema) {
       const completions = getPropertyCompletions(parentSchema, context, cachedSchema);
+      console.log('[Autocomplete] 找到', completions.length, '个属性补全项');
       if (completions.length > 0) {
         // 计算补全起始位置
         const line = context.state.doc.lineAt(context.pos);
@@ -831,9 +865,11 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
         };
       }
     }
-  } else if (isValueContext(context)) {
+  } else if (isValue) {
     // 值补全
+    console.log('[Autocomplete] 值补全，当前 Schema:', !!currentSchema);
     const completions = getValueCompletions(currentSchema, context);
+    console.log('[Autocomplete] 找到', completions.length, '个值补全项');
     if (completions.length > 0) {
       // 计算补全起始位置
       const line = context.state.doc.lineAt(context.pos);
@@ -849,6 +885,7 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
     }
   }
   
+  console.log('[Autocomplete] 无补全项返回');
   return null;
 }
 
@@ -881,15 +918,25 @@ export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig
     return [];
   }
   
-  // 更新当前使用的 schema 路径
+  // 更新当前使用的 schema 路径（即使为空字符串也要更新）
   if (config.schemaPath !== undefined) {
-    currentSchemaPath = config.schemaPath;
+    const newPath = config.schemaPath || undefined; // 空字符串转为 undefined，使用默认路径
+    currentSchemaPath = newPath;
     // 如果路径变化，清除缓存
-    if (config.schemaPath !== lastSchemaPath) {
+    if (newPath !== lastSchemaPath) {
       cachedSchema = null;
       schemaLoadPromise = null;
+      console.log('[Autocomplete] Schema 路径已更新:', newPath || '默认路径');
     }
   }
+  
+  console.log('[Autocomplete] 扩展创建完成，配置:', {
+    enabled: config.enabled,
+    activateOnTyping: config.activateOnTyping,
+    delay: config.delay,
+    schemaPath: config.schemaPath,
+    currentSchemaPath,
+  });
   
   return [autocompletion({
     activateOnTyping: config.activateOnTyping,
