@@ -844,6 +844,26 @@ function isPropertyNameContext(context: CompletionContext): boolean {
       const afterLastBrace = before.substring(lastBraceIndex + 1).trim();
       // 移除可能的引号
       const content = afterLastBrace.replace(/^["']|["']$/g, '');
+      
+      // 特殊情况处理：空对象 {} 但光标在外面
+      // 允许触发补全，但会在补全时调整插入位置到 {} 内部
+      if (content === '}' || content.trim() === '}') {
+        // 检查是否是空对象 {}（光标在外面）
+        const openIndex = before.lastIndexOf('{');
+        const closeIndex = before.lastIndexOf('}');
+        if (openIndex >= 0 && closeIndex > openIndex) {
+          const betweenBraces = before.substring(openIndex + 1, closeIndex).trim();
+          if (betweenBraces === '') {
+            // 空对象 {}，光标在外面 - 允许补全，位置会在后面调整
+            console.log('[Autocomplete] JsonText 特殊：空对象 {}，光标在外面，允许补全但会调整位置');
+            return true;
+          }
+        }
+        // 非空对象，光标在 } 后面，排除
+        console.log('[Autocomplete] JsonText 排除：光标在 } 后面，不在对象内部');
+        return false;
+      }
+      
       // 如果没有冒号，说明还在输入属性名
       if (!content.includes(':')) {
         console.log('[Autocomplete] JsonText 文本匹配：在对象开始或逗号后（方法2），内容:', content);
@@ -976,7 +996,44 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
       if (completions.length > 0) {
         // 计算补全起始位置
         const line = context.state.doc.lineAt(context.pos);
-        const beforeCursor = line.text.substring(0, context.pos - line.from);
+        const lineText = line.text;
+        const lineStart = line.from;
+        const beforeCursor = lineText.substring(0, context.pos - lineStart);
+        
+        // 特殊处理：如果光标在 {} 后面，应该插入到 { 和 } 之间
+        // 检查 beforeCursor 是否包含完整的 {}（光标在 } 后面）
+        const openBraceIndex = beforeCursor.lastIndexOf('{');
+        const closeBraceIndex = beforeCursor.lastIndexOf('}');
+        
+        // 如果找到 {}，且光标在 } 后面
+        if (openBraceIndex >= 0 && closeBraceIndex > openBraceIndex && context.pos > lineStart + closeBraceIndex) {
+          const betweenBraces = beforeCursor.substring(openBraceIndex + 1, closeBraceIndex).trim();
+          // 如果 {} 之间是空的，则插入到 { 和 } 之间
+          if (betweenBraces === '') {
+            // from 在 { 后面，to 在 } 前面 - 这样会替换 {} 之间的空白，插入内容
+            const from = lineStart + openBraceIndex + 1;
+            const to = lineStart + closeBraceIndex;
+            
+            console.log('[Autocomplete] 空对象 {} 情况，调整插入位置到内部:', { 
+              from, 
+              to, 
+              pos: context.pos, 
+              beforeCursor,
+              openBraceIndex,
+              closeBraceIndex,
+              lineStart,
+              '替换范围': `${from} 到 ${to} (内容: "${lineText.substring(openBraceIndex + 1, closeBraceIndex)}")`
+            });
+            
+            return {
+              from,
+              to,
+              options: completions,
+            };
+          }
+        }
+        
+        // 正常情况：匹配属性名部分
         const match = beforeCursor.match(/["']?([^"',}\]]*)$/);
         const from = match ? context.pos - match[1].length : context.pos;
         
