@@ -8,7 +8,7 @@ import { bracketMatching, indentOnInput, indentUnit } from '@codemirror/language
 import { highlightSelectionMatches, searchKeymap, openSearchPanel } from '@codemirror/search';
 import { history, defaultKeymap, indentWithTab, undo, redo } from '@codemirror/commands';
 import { keymap } from '@codemirror/view';
-import { closeBrackets } from '@codemirror/autocomplete';
+import { closeBrackets, startCompletion } from '@codemirror/autocomplete';
 import { createJsonSchemaExtension } from '../lib/codemirror-json-schema';
 import { contextMenu } from '../lib/codemirror-context-menu';
 import { createJsonSchemaAutocompleteExtension } from '../lib/json-schema-autocomplete';
@@ -134,7 +134,25 @@ async function buildExtensions(): Promise<Extension[]> {
   extensions.push(history());
   extensions.push(json());
   extensions.push(contextMenu());
-  extensions.push(keymap.of([indentWithTab, ...defaultKeymap, ...searchKeymap]));
+  
+  // Tab 键触发补全（移除缩进功能）
+  const tabAutocompleteCommand = (view: any) => {
+    // 直接触发补全，不需要检查上下文
+    console.log('[JsonEditor] Tab 键按下，触发补全');
+    return startCompletion(view);
+  };
+  
+  // 移除 indentWithTab，添加 Tab 键补全
+  // Tab 键映射放在最前面，优先级最高，会覆盖默认的缩进行为
+  extensions.push(keymap.of([
+    {
+      key: 'Tab',
+      run: tabAutocompleteCommand,
+    },
+  ]));
+  
+  // 添加其他快捷键（不包括 Tab，因为我们已经在上面处理了）
+  extensions.push(keymap.of([...defaultKeymap, ...searchKeymap]));
   
   // 文档变更监听
   extensions.push(EditorView.updateListener.of((update) => {
