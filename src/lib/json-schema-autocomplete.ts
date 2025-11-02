@@ -408,19 +408,46 @@ function createPropertyApply(key: string, propSchema?: JsonSchema, rootSchema?: 
     // 如果已在字符串内，只插入键名
     let insertText: string = isInString ? key : `"${key}"`;
     
+    // 计算光标位置（默认在插入文本末尾）
+    let cursorPosition = from + insertText.length;
+    
     // 如果提供了 schema，自动插入默认值
     if (propSchema && rootSchema) {
       const defaultValue = getDefaultValue(propSchema, rootSchema);
       // 在冒号后插入默认值（如果不是空对象/空数组的话）
       if (defaultValue !== '{}' && defaultValue !== '[]') {
         insertText += `: ${defaultValue}`;
+        
+        // 优化光标位置：
+        // - 如果是字符串类型（""），光标定位到两个引号中间
+        // - 如果是其他类型，光标定位到值后面
+        if (defaultValue === '""') {
+          // 字符串类型：光标定位到两个引号中间
+          // insertText 现在是 `"$schema": ""`
+          // 光标应该在第二个引号前面（即在 "" 中间）
+          cursorPosition = from + insertText.length - 1; // 在最后一个引号前面
+        } else if (defaultValue.startsWith('"') && defaultValue.endsWith('"') && defaultValue.length > 2) {
+          // 带引号的字符串值（如枚举值），光标定位到引号中间
+          cursorPosition = from + insertText.length - 1; // 在最后一个引号前面
+        } else {
+          // 其他类型（数字、布尔、null），光标定位到值后面
+          cursorPosition = from + insertText.length;
+        }
       }
     }
     
     // 插入文本
     view.dispatch({
       changes: { from, to, insert: insertText },
-      selection: { anchor: from + insertText.length },
+      selection: { anchor: cursorPosition },
+    });
+    
+    console.log('[Autocomplete] 属性插入完成:', {
+      insertText,
+      cursorPosition,
+      from,
+      to,
+      '光标在引号内': insertText.includes('""') && cursorPosition === from + insertText.length - 1,
     });
   };
 }
@@ -431,6 +458,7 @@ function createValueApply(valueStr: string, isString: boolean): (view: any, _com
     const state = view.state;
     
     let insertText: string;
+    let cursorPosition: number;
     
     if (isString) {
       // 字符串值：使用语法树判断是否已在字符串内
@@ -453,19 +481,38 @@ function createValueApply(valueStr: string, isString: boolean): (view: any, _com
       if (isInString) {
         // 如果已在字符串内，移除 valueStr 中的引号
         insertText = valueStr.replace(/^"|"$/g, '');
+        // 光标定位到值后面（已在字符串内，不需要定位到引号中间）
+        cursorPosition = from + insertText.length;
       } else {
         // 如果不在字符串内，直接使用 JSON.stringify 的结果（已包含引号）
         insertText = valueStr;
+        // 如果是空字符串 ""，光标定位到引号中间
+        // 如果是其他字符串值（如枚举），光标也定位到引号中间，方便编辑
+        if (insertText === '""' || (insertText.startsWith('"') && insertText.endsWith('"') && insertText.length > 2)) {
+          cursorPosition = from + insertText.length - 1; // 在最后一个引号前面
+        } else {
+          cursorPosition = from + insertText.length;
+        }
       }
     } else {
       // 非字符串值：直接插入（如 true, false, null, 数字）
       insertText = valueStr;
+      cursorPosition = from + insertText.length;
     }
     
     // 插入文本
     view.dispatch({
       changes: { from, to, insert: insertText },
-      selection: { anchor: from + insertText.length },
+      selection: { anchor: cursorPosition },
+    });
+    
+    console.log('[Autocomplete] 值插入完成:', {
+      insertText,
+      cursorPosition,
+      from,
+      to,
+      isString,
+      '光标在引号内': isString && insertText.includes('"') && cursorPosition === from + insertText.length - 1,
     });
   };
 }
