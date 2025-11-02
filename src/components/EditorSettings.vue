@@ -14,6 +14,9 @@ const categoryLabels = {
     validation: '校验',
     autocomplete: '自动补全',
     editing: '编辑辅助',
+    appearance: '外观',
+    display: '显示选项',
+    advanced: '高级选项',
     reset: '重置所有',
     save: '保存',
     cancel: '取消',
@@ -26,6 +29,9 @@ const categoryLabels = {
     validation: 'Validation',
     autocomplete: 'Autocomplete',
     editing: 'Editing Assistance',
+    appearance: 'Appearance',
+    display: 'Display Options',
+    advanced: 'Advanced Options',
     reset: 'Reset All',
     save: 'Save',
     cancel: 'Cancel',
@@ -54,6 +60,20 @@ const labelFor = (key: keyof EditorSettings) => {
       autoFormatOnModeSwitch: '切换模式时格式化',
       autoCloseBrackets: '自动闭合括号',
       autoHighlightSelectionMatches: '高亮匹配项',
+      enableLineNumbers: '显示行号',
+      enableFoldGutter: '启用代码折叠',
+      enableBracketMatching: '启用括号匹配',
+      theme: '主题',
+      syntaxHighlightingEnabled: '语法高亮',
+      lineHeight: '行高',
+      fontSize: '字体大小',
+      fontFamily: '字体族',
+      wordWrap: '自动折行',
+      showWhitespace: '显示空白字符',
+      tabSize: 'Tab 键空格数',
+      renderLineHighlight: '行高亮显示',
+      showRuler: '显示标尺',
+      rulerPosition: '标尺位置',
     },
     en: {
       autoIndent: 'Auto Indent',
@@ -70,6 +90,20 @@ const labelFor = (key: keyof EditorSettings) => {
       autoFormatOnModeSwitch: 'Format on Mode Switch',
       autoCloseBrackets: 'Auto Close Brackets',
       autoHighlightSelectionMatches: 'Highlight Matches',
+      enableLineNumbers: 'Line Numbers',
+      enableFoldGutter: 'Code Folding',
+      enableBracketMatching: 'Bracket Matching',
+      theme: 'Theme',
+      syntaxHighlightingEnabled: 'Syntax Highlighting',
+      lineHeight: 'Line Height',
+      fontSize: 'Font Size',
+      fontFamily: 'Font Family',
+      wordWrap: 'Word Wrap',
+      showWhitespace: 'Show Whitespace',
+      tabSize: 'Tab Size',
+      renderLineHighlight: 'Line Highlight',
+      showRuler: 'Show Ruler',
+      rulerPosition: 'Ruler Position',
     },
   };
   return labels[currentLocale.value][key];
@@ -92,6 +126,20 @@ const descriptionFor = (key: keyof EditorSettings) => {
       autoFormatOnModeSwitch: '在 JSON 和表单模式间切换时格式化',
       autoCloseBrackets: '输入 { [ " 时自动闭合',
       autoHighlightSelectionMatches: '选中文本时高亮所有匹配项',
+      enableLineNumbers: '在编辑器左侧显示行号',
+      enableFoldGutter: '启用代码折叠功能',
+      enableBracketMatching: '高亮匹配的括号',
+      theme: '选择编辑器主题（浅色/深色/自动）',
+      syntaxHighlightingEnabled: '为代码添加语法高亮',
+      lineHeight: '设置文本行高倍数',
+      fontSize: '设置编辑器字体大小',
+      fontFamily: '设置编辑器字体族',
+      wordWrap: '超过行宽时自动换行',
+      showWhitespace: '显示空格和制表符字符',
+      tabSize: 'Tab 键的空格数',
+      renderLineHighlight: '行高亮显示方式',
+      showRuler: '显示垂直标尺线',
+      rulerPosition: '标尺线的列位置',
     },
     en: {
       autoIndent: 'Automatically insert indent when pressing Enter',
@@ -108,6 +156,20 @@ const descriptionFor = (key: keyof EditorSettings) => {
       autoFormatOnModeSwitch: 'Format when switching between JSON and form modes',
       autoCloseBrackets: 'Automatically close brackets when typing { [ "',
       autoHighlightSelectionMatches: 'Highlight all matches of selected text',
+      enableLineNumbers: 'Show line numbers on the left',
+      enableFoldGutter: 'Enable code folding functionality',
+      enableBracketMatching: 'Highlight matching brackets',
+      theme: 'Choose editor theme (light/dark/auto)',
+      syntaxHighlightingEnabled: 'Add syntax highlighting to code',
+      lineHeight: 'Set text line height multiplier',
+      fontSize: 'Set editor font size',
+      fontFamily: 'Set editor font family',
+      wordWrap: 'Wrap text automatically when exceeding line width',
+      showWhitespace: 'Show whitespace and tab characters',
+      tabSize: 'Number of spaces for Tab key',
+      renderLineHighlight: 'Line highlight rendering mode',
+      showRuler: 'Show vertical ruler line',
+      rulerPosition: 'Column position of ruler line',
     },
   };
   return descriptions[currentLocale.value][key];
@@ -328,6 +390,185 @@ defineExpose({
                   <div class="setting-desc">{{ descriptionFor('autoHighlightSelectionMatches') }}</div>
                 </div>
               </label>
+              
+              <label class="setting-item">
+                <input type="checkbox" v-model="tempSettings.enableLineNumbers" />
+                <div class="setting-label">
+                  <div class="setting-name">{{ labelFor('enableLineNumbers') }}</div>
+                  <div class="setting-desc">{{ descriptionFor('enableLineNumbers') }}</div>
+                </div>
+              </label>
+              
+              <label class="setting-item">
+                <input type="checkbox" v-model="tempSettings.enableFoldGutter" />
+                <div class="setting-label">
+                  <div class="setting-name">{{ labelFor('enableFoldGutter') }}</div>
+                  <div class="setting-desc">{{ descriptionFor('enableFoldGutter') }}</div>
+                </div>
+              </label>
+              
+              <label class="setting-item">
+                <input type="checkbox" v-model="tempSettings.enableBracketMatching" />
+                <div class="setting-label">
+                  <div class="setting-name">{{ labelFor('enableBracketMatching') }}</div>
+                  <div class="setting-desc">{{ descriptionFor('enableBracketMatching') }}</div>
+                </div>
+              </label>
+            </div>
+          </details>
+
+          <!-- 外观 -->
+          <details class="settings-category" open>
+            <summary class="category-header">
+              <span class="category-icon">🎨</span>
+              <span class="category-title">{{ t.appearance }}</span>
+            </summary>
+            <div class="category-content">
+              <label class="setting-item">
+                <span class="setting-name">{{ labelFor('theme') }}</span>
+                <select v-model="tempSettings.theme" class="theme-select">
+                  <option value="light">浅色</option>
+                  <option value="dark">深色</option>
+                  <option value="auto">跟随系统</option>
+                </select>
+              </label>
+              
+              <label class="setting-item">
+                <input type="checkbox" v-model="tempSettings.syntaxHighlightingEnabled" />
+                <div class="setting-label">
+                  <div class="setting-name">{{ labelFor('syntaxHighlightingEnabled') }}</div>
+                  <div class="setting-desc">{{ descriptionFor('syntaxHighlightingEnabled') }}</div>
+                </div>
+              </label>
+            </div>
+          </details>
+
+          <!-- 显示选项 -->
+          <details class="settings-category" open>
+            <summary class="category-header">
+              <span class="category-icon">👁️</span>
+              <span class="category-title">{{ t.display }}</span>
+            </summary>
+            <div class="category-content">
+              <label class="setting-item indent-setting">
+                <span class="setting-name">{{ labelFor('fontSize') }}</span>
+                <input
+                  type="range"
+                  v-model.number="tempSettings.fontSize"
+                  min="10"
+                  max="24"
+                  step="1"
+                  class="indent-slider"
+                />
+                <input
+                  type="number"
+                  v-model.number="tempSettings.fontSize"
+                  min="10"
+                  max="24"
+                  class="indent-input"
+                />
+              </label>
+              
+              <label class="setting-item">
+                <span class="setting-name">{{ labelFor('fontFamily') }}</span>
+                <input
+                  type="text"
+                  v-model="tempSettings.fontFamily"
+                  class="font-input"
+                  placeholder="Menlo, Monaco, monospace"
+                />
+              </label>
+              
+              <label class="setting-item indent-setting">
+                <span class="setting-name">{{ labelFor('lineHeight') }}</span>
+                <input
+                  type="range"
+                  v-model.number="tempSettings.lineHeight"
+                  min="1"
+                  max="3"
+                  step="0.1"
+                  class="indent-slider"
+                />
+                <input
+                  type="number"
+                  v-model.number="tempSettings.lineHeight"
+                  min="1"
+                  max="3"
+                  step="0.1"
+                  class="indent-input"
+                />
+              </label>
+              
+              <label class="setting-item">
+                <input type="checkbox" v-model="tempSettings.wordWrap" />
+                <div class="setting-label">
+                  <div class="setting-name">{{ labelFor('wordWrap') }}</div>
+                  <div class="setting-desc">{{ descriptionFor('wordWrap') }}</div>
+                </div>
+              </label>
+              
+              <label class="setting-item">
+                <input type="checkbox" v-model="tempSettings.showWhitespace" />
+                <div class="setting-label">
+                  <div class="setting-name">{{ labelFor('showWhitespace') }}</div>
+                  <div class="setting-desc">{{ descriptionFor('showWhitespace') }}</div>
+                </div>
+              </label>
+            </div>
+          </details>
+
+          <!-- 高级选项 -->
+          <details class="settings-category">
+            <summary class="category-header">
+              <span class="category-icon">⚙️</span>
+              <span class="category-title">{{ t.advanced }}</span>
+            </summary>
+            <div class="category-content">
+              <label class="setting-item indent-setting">
+                <span class="setting-name">{{ labelFor('tabSize') }}</span>
+                <input
+                  type="range"
+                  v-model.number="tempSettings.tabSize"
+                  min="1"
+                  max="8"
+                  step="1"
+                  class="indent-slider"
+                />
+                <input
+                  type="number"
+                  v-model.number="tempSettings.tabSize"
+                  min="1"
+                  max="8"
+                  class="indent-input"
+                />
+              </label>
+              
+              <label class="setting-item">
+                <input type="checkbox" v-model="tempSettings.showRuler" />
+                <div class="setting-label">
+                  <div class="setting-name">{{ labelFor('showRuler') }}</div>
+                  <div class="setting-desc">{{ descriptionFor('showRuler') }}</div>
+                </div>
+              </label>
+              
+              <label v-if="tempSettings.showRuler" class="setting-item indent-setting">
+                <span class="setting-name">{{ labelFor('rulerPosition') }}</span>
+                <input
+                  type="range"
+                  v-model.number="tempSettings.rulerPosition"
+                  min="40"
+                  max="200"
+                  step="5"
+                  class="indent-slider"
+                />
+                <input
+                  type="number"
+                  v-model.number="tempSettings.rulerPosition"
+                  min="40"
+                  max="200"
+                  class="indent-input"
+                />
+              </label>
             </div>
           </details>
         </div>
@@ -527,6 +768,28 @@ defineExpose({
   border-radius: 4px;
   font-size: 13px;
   text-align: center;
+}
+
+.theme-select, .font-input {
+  width: 200px;
+  padding: 6px 10px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 4px;
+  font-size: 13px;
+  background: var(--bg-panel, #fff);
+  color: var(--text-primary, #1f2328);
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.theme-select:hover, .font-input:hover {
+  border-color: var(--brand, #3b82f6);
+}
+
+.theme-select:focus, .font-input:focus {
+  outline: none;
+  border-color: var(--brand, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .modal-footer {
