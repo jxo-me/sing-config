@@ -1296,10 +1296,24 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
           }
           from = contentStart;
         } else {
-          // 没有输入内容，from 应该就在光标位置
-          // 但为了确保显示补全，我们需要确保 from < to
-          // 如果 from === to，CodeMirror 可能不会显示补全
-          from = context.pos;
+          // 没有输入内容，from 应该在冒号后的第一个非空格位置
+          // 这样确保 from < to，CodeMirror 才能显示补全
+          const colonPos = lineStart + colonIndex + 1;
+          let contentStart = colonPos;
+          // 跳过空白
+          while (contentStart < context.pos && /\s/.test(lineText[contentStart - lineStart])) {
+            contentStart++;
+          }
+          // 跳过可能的引号
+          if (lineText[contentStart - lineStart] === '"') {
+            contentStart++;
+          }
+          from = contentStart;
+          
+          // 确保 from < to
+          if (from >= context.pos) {
+            from = Math.max(lineStart, context.pos - 1);
+          }
         }
       } else {
         // 没找到冒号，使用当前光标位置
