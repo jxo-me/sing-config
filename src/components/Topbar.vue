@@ -4,6 +4,7 @@ import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { open, save, message } from '@tauri-apps/plugin-dialog';
 import { loadFromText, toPrettyJson, runValidation, lastValidation, setLastSavedPath, setLastOpenedPath, lastSavedPath, lastOpenedPath, setConfig, setOriginalConfig } from '../stores/config';
 import { useI18n } from '../i18n';
+import { settings } from '../stores/settings';
 import TemplateLibrary from './TemplateLibrary.vue';
 import SetupWizard from './SetupWizard.vue';
 import EditorSettings from './EditorSettings.vue';
@@ -38,7 +39,18 @@ async function onOpen() {
       opening.value = false;
       return;
     }
-    const content = await readTextFile(path as string);
+    let content = await readTextFile(path as string);
+    
+    // 根据设置决定是否格式化加载的文件
+    if (settings.autoFormatOnLoad) {
+      try {
+        const parsed = JSON.parse(content);
+        content = JSON.stringify(parsed, null, 2);
+      } catch {
+        // 如果解析失败，保持原内容不变
+      }
+    }
+    
     await loadFromText(content);
     // 打开新文件时，清除之前的保存路径（因为这是新打开的文件）
     setLastSavedPath(null);
@@ -54,7 +66,18 @@ async function onLoadExample() {
   try {
     const resp = await fetch('/config.full.json', { cache: 'no-store' });
     if (!resp.ok) throw new Error(String(resp.status));
-    const text = await resp.text();
+    let text = await resp.text();
+    
+    // 根据设置决定是否格式化加载的示例
+    if (settings.autoFormatOnLoad) {
+      try {
+        const parsed = JSON.parse(text);
+        text = JSON.stringify(parsed, null, 2);
+      } catch {
+        // 如果解析失败，保持原内容不变
+      }
+    }
+    
     await loadFromText(text);
     // 加载示例时，清除文件路径
     setLastSavedPath(null);
@@ -81,7 +104,16 @@ async function onSave() {
     );
     return;
   }
-  const text = toPrettyJson();
+  
+  // 根据设置决定是否格式化保存的文件
+  let text: string;
+  if (settings.autoFormatOnSave) {
+    text = toPrettyJson(); // 使用格式化输出
+  } else {
+    // 使用未格式化的 JSON
+    const { currentConfig } = await import('../stores/config');
+    text = JSON.stringify(currentConfig.value);
+  }
   
   // 如果有保存路径，直接保存；否则弹出对话框
   let path: string | null = null;
@@ -127,7 +159,17 @@ async function onSaveAs() {
     );
     return;
   }
-  const text = toPrettyJson();
+  
+  // 根据设置决定是否格式化保存的文件
+  let text: string;
+  if (settings.autoFormatOnSave) {
+    text = toPrettyJson(); // 使用格式化输出
+  } else {
+    // 使用未格式化的 JSON
+    const { currentConfig } = await import('../stores/config');
+    text = JSON.stringify(currentConfig.value);
+  }
+  
   const savedPath = await save({ filters: [{ name: 'JSON', extensions: ['json'] }] });
   if (!savedPath) return;
   const path = savedPath as string;

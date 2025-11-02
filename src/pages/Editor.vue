@@ -500,11 +500,23 @@ async function restoreScrollPosition(targetMode: 'json' | 'form') {
 }
 
 // 监听模式切换
-watch(mode, (newMode, oldMode) => {
+watch(mode, async (newMode, oldMode) => {
   if (oldMode) {
     // 保存旧模式的滚动位置
     saveScrollPosition(oldMode);
   }
+  
+  // 如果切换到 JSON 模式且启用了自动格式化，则格式化内容
+  if (newMode === 'json' && settings.autoFormatOnModeSwitch) {
+    try {
+      const formatted = toPrettyJson();
+      text.value = formatted;
+      await loadFromText(formatted);
+    } catch (error) {
+      console.error('Failed to format JSON on mode switch:', error);
+    }
+  }
+  
   // 恢复新模式的滚动位置
   restoreScrollPosition(newMode);
 });
