@@ -7,7 +7,7 @@ import { foldGutter, foldedRanges, foldEffect } from '@codemirror/language';
 import { bracketMatching } from '@codemirror/language';
 import { highlightSelectionMatches, searchKeymap, openSearchPanel } from '@codemirror/search';
 import { history, defaultKeymap, indentWithTab, undo, redo } from '@codemirror/commands';
-import { indentOnInput, indentUnit } from '@codemirror/language';
+// import { indentOnInput, indentUnit } from '@codemirror/language'; // 临时禁用用于测试
 import { keymap } from '@codemirror/view';
 import { closeBrackets } from '@codemirror/autocomplete';
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
@@ -74,8 +74,8 @@ onMounted(async () => {
     bracketMatching(),
     closeBrackets(),
     history(),
-    indentOnInput(),
-    indentUnit.of('  '), // 2 spaces
+    // indentOnInput(), // 临时禁用自动缩进用于测试
+    // indentUnit.of('  '), // 临时禁用自动缩进用于测试
     highlightSelectionMatches(),
     json(), // JSON 语言支持（包含语法高亮）
     syntaxHighlighting(jsonHighlightStyle), // 应用语法高亮样式

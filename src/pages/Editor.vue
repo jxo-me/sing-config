@@ -19,7 +19,8 @@ import { editorErrors, editorValidationState } from '../lib/codemirror-json-sche
 import { setupMenuHandlers, cleanupMenuHandlers, setTopbarRef, setEditorRef } from '../lib/menu-handler';
 import { invoke } from '@tauri-apps/api/core';
 import { useResponsive } from '../composables/useResponsive';
-import { repairJson, isValidJson } from '../lib/json-repair';
+import { repairJson } from '../lib/json-repair';
+// import { isValidJson } from '../lib/json-repair'; // 临时禁用用于测试
 
 const { t, currentLocale, setLocale } = useI18n();
 
@@ -163,10 +164,11 @@ async function handleAutoRepair() {
   }
 }
 
-// 检查当前 JSON 是否需要修复
+// 检查当前 JSON 是否需要修复 - 临时禁用用于测试
 const needsRepair = computed(() => {
-  if (mode.value !== 'json') return false;
-  return !isValidJson(text.value);
+  return false; // 临时禁用
+  // if (mode.value !== 'json') return false;
+  // return !isValidJson(text.value);
 });
 
 // 计算当前显示的错误（JSON 模式用编辑器错误，表单模式用 lastValidation）
