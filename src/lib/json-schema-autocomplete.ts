@@ -913,8 +913,11 @@ const defaultAutocompleteConfig: AutocompleteConfig = {
  * 创建自动补全扩展（支持配置）
  */
 export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig = defaultAutocompleteConfig): Extension[] {
+  console.log('[Autocomplete] createJsonSchemaAutocompleteExtension 被调用:', config);
+  
   // 如果禁用，返回空扩展
   if (!config.enabled) {
+    console.log('[Autocomplete] 扩展已禁用，返回空数组');
     return [];
   }
   
@@ -938,15 +941,31 @@ export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig
     currentSchemaPath,
   });
   
-  return [autocompletion({
+  const autocompleteExtension = autocompletion({
     activateOnTyping: config.activateOnTyping,
     activateOnTypingDelay: config.delay,
     override: [
       async (context: CompletionContext) => {
-        return await jsonSchemaAutocomplete(context);
+        console.log('[Autocomplete] override 函数被触发', {
+          pos: context.pos,
+          trigger: context.explicit,
+          activateOnTyping: config.activateOnTyping,
+          delay: config.delay,
+        });
+        const result = await jsonSchemaAutocomplete(context);
+        console.log('[Autocomplete] override 函数返回:', result ? `${result.options.length} 个选项` : 'null');
+        return result;
       },
     ],
-  })];
+  });
+  
+  console.log('[Autocomplete] 创建 autocompletion 扩展:', {
+    activateOnTyping: config.activateOnTyping,
+    delay: config.delay,
+    extensionType: autocompleteExtension.constructor.name,
+  });
+  
+  return [autocompleteExtension];
 }
 
 /**

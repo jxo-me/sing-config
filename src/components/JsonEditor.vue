@@ -85,12 +85,23 @@ async function buildExtensions(): Promise<Extension[]> {
   
   // 自动补全（使用新的配置函数，独立于 Schema 验证）
   if (settings.enableAutocomplete) {
-    extensions.push(...createJsonSchemaAutocompleteExtension({
+    const autocompletePath = getAutocompleteSchemaPath();
+    console.log('[JsonEditor] 准备添加自动补全扩展:', {
+      enabled: settings.enableAutocomplete,
+      activateOnTyping: settings.autocompleteActivateOnTyping,
+      delay: settings.autocompleteDelay,
+      schemaPath: autocompletePath,
+    });
+    const autocompleteExtensions = createJsonSchemaAutocompleteExtension({
       enabled: true,
       activateOnTyping: settings.autocompleteActivateOnTyping,
       delay: settings.autocompleteDelay,
-      schemaPath: getAutocompleteSchemaPath(), // 使用独立的自动补全 Schema 路径
-    }));
+      schemaPath: autocompletePath, // 使用独立的自动补全 Schema 路径
+    });
+    console.log('[JsonEditor] 自动补全扩展已创建，数量:', autocompleteExtensions.length);
+    extensions.push(...autocompleteExtensions);
+  } else {
+    console.log('[JsonEditor] 自动补全已禁用');
   }
   
   // 语法高亮（使用新的配置函数）
@@ -181,6 +192,8 @@ onMounted(async () => {
   
   // 构建扩展
   const allExtensions = await buildExtensions();
+  console.log('[JsonEditor] 所有扩展已构建，总数:', allExtensions.length);
+  console.log('[JsonEditor] 扩展列表:', allExtensions.map((ext: any) => ext?.constructor?.name || typeof ext).slice(0, 10));
   
   // 创建编辑器
   editor = new EditorView({
@@ -189,6 +202,11 @@ onMounted(async () => {
       extensions: allExtensions,
     }),
     parent: container.value,
+  });
+  
+  console.log('[JsonEditor] 编辑器已创建，检查自动补全扩展:', {
+    hasEditor: !!editor,
+    extensionsCount: allExtensions.length,
   });
 
   // 确保编辑器在容器大小变化时自动调整
