@@ -1,5 +1,6 @@
 import { CompletionContext, CompletionResult, Completion, autocompletion } from '@codemirror/autocomplete';
 import { syntaxTree } from '@codemirror/language';
+import { Extension } from '@codemirror/state';
 import { loadSchema } from './schema';
 import { getCurrentLocale } from './codemirror-json-schema';
 
@@ -859,13 +860,13 @@ const defaultAutocompleteConfig: AutocompleteConfig = {
 /**
  * 创建自动补全扩展（支持配置）
  */
-export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig = defaultAutocompleteConfig) {
+export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig = defaultAutocompleteConfig): Extension[] {
   // 如果禁用，返回空扩展
   if (!config.enabled) {
     return [];
   }
   
-  return autocompletion({
+  return [autocompletion({
     activateOnTyping: config.activateOnTyping,
     activateOnTypingDelay: config.delay,
     override: [
@@ -873,7 +874,7 @@ export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig
         return await jsonSchemaAutocomplete(context);
       },
     ],
-  });
+  })];
 }
 
 /**

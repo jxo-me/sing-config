@@ -1,5 +1,6 @@
-import { HighlightStyle } from '@codemirror/language';
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
+import { Extension } from '@codemirror/state';
 
 /**
  * 主题类型
@@ -80,14 +81,14 @@ export interface SyntaxHighlightingConfig {
 /**
  * 创建语法高亮扩展
  */
-export function createSyntaxHighlighting(config: SyntaxHighlightingConfig) {
+export function createSyntaxHighlighting(config: SyntaxHighlightingConfig): Extension[] {
   if (!config.enabled) {
     return [];
   }
   
   const themeConfig = themes[config.theme];
   return [
-    HighlightStyle.define([
+    syntaxHighlighting(HighlightStyle.define([
       { tag: t.string, color: themeConfig.colors.string },
       { tag: t.number, color: themeConfig.colors.number },
       { tag: t.bool, color: themeConfig.colors.bool },
@@ -96,7 +97,7 @@ export function createSyntaxHighlighting(config: SyntaxHighlightingConfig) {
       { tag: t.punctuation, color: themeConfig.colors.punctuation },
       { tag: t.bracket, color: themeConfig.colors.bracket },
       { tag: t.separator, color: themeConfig.colors.separator },
-    ]),
+    ])),
   ];
 }
 

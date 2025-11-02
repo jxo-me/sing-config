@@ -1,20 +1,19 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import { onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue';
 import { EditorView, lineNumbers } from '@codemirror/view';
-import { EditorState, Extension, StateEffect } from '@codemirror/state';
+import { EditorState, Extension } from '@codemirror/state';
 import { json } from '@codemirror/lang-json';
 import { foldGutter, foldedRanges, foldEffect } from '@codemirror/language';
-import { bracketMatching } from '@codemirror/language';
+import { bracketMatching, indentOnInput, indentUnit } from '@codemirror/language';
 import { highlightSelectionMatches, searchKeymap, openSearchPanel } from '@codemirror/search';
 import { history, defaultKeymap, indentWithTab, undo, redo } from '@codemirror/commands';
-import { indentOnInput, indentUnit } from '@codemirror/language';
 import { keymap } from '@codemirror/view';
 import { closeBrackets } from '@codemirror/autocomplete';
-import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
-import { tags as t } from '@lezer/highlight';
-import { jsonSchema, jsonSchemaSync } from '../lib/codemirror-json-schema';
+import { createJsonSchemaExtension } from '../lib/codemirror-json-schema';
 import { contextMenu } from '../lib/codemirror-context-menu';
-import { jsonSchemaAutocompleteExtension } from '../lib/json-schema-autocomplete';
+import { createJsonSchemaAutocompleteExtension } from '../lib/json-schema-autocomplete';
+import { createSyntaxHighlighting } from '../lib/editor-themes';
+import { createEditorTheme } from '../lib/editor-custom-theme';
 import { useI18n } from '../i18n';
 import { settings } from '../stores/settings';
 
@@ -53,155 +52,141 @@ watch(currentLocale, () => {
   }
 });
 
-// JSON 语法高亮样式
-const jsonHighlightStyle = HighlightStyle.define([
-  { tag: t.string, color: '#0ea5e9' }, // 字符串：蓝色
-  { tag: t.number, color: '#8b5cf6' }, // 数字：紫色
-  { tag: t.bool, color: '#f59e0b' }, // 布尔值：橙色
-  { tag: t.null, color: '#ef4444' }, // null：红色
-  { tag: t.propertyName, color: '#10b981', fontWeight: 'bold' }, // 属性名：绿色粗体
-  { tag: t.punctuation, color: '#6b7280' }, // 标点符号：灰色
-  { tag: t.bracket, color: '#6b7280' }, // 括号：灰色
-  { tag: t.separator, color: '#6b7280' }, // 分隔符：灰色
-]);
+/**
+ * 构建编辑器扩展（支持动态配置）
+ */
+async function buildExtensions(): Promise<Extension[]> {
+  const extensions: Extension[] = [];
+  
+  // 基础 UI 功能
+  if (settings.enableLineNumbers) {
+    extensions.push(lineNumbers());
+  }
+  if (settings.enableFoldGutter) {
+    extensions.push(foldGutter());
+  }
+  if (settings.enableBracketMatching) {
+    extensions.push(bracketMatching());
+  }
+  
+  // 条件扩展
+  if (settings.autoIndent) {
+    extensions.push(indentOnInput());
+    extensions.push(indentUnit.of(' '.repeat(settings.indentSize)));
+  }
+  
+  if (settings.autoCloseBrackets) {
+    extensions.push(closeBrackets());
+  }
+  
+  if (settings.autoHighlightSelectionMatches) {
+    extensions.push(highlightSelectionMatches());
+  }
+  
+  // 自动补全（使用新的配置函数）
+  if (settings.enableAutocomplete) {
+    extensions.push(...createJsonSchemaAutocompleteExtension({
+      enabled: true,
+      activateOnTyping: settings.autocompleteActivateOnTyping,
+      delay: settings.autocompleteDelay,
+    }));
+  }
+  
+  // 语法高亮（使用新的配置函数）
+  extensions.push(...createSyntaxHighlighting({
+    theme: settings.theme,
+    enabled: settings.syntaxHighlightingEnabled,
+  }));
+  
+  // 编辑器主题（使用新的配置函数）
+  extensions.push(...createEditorTheme({
+    fontSize: settings.fontSize,
+    fontFamily: settings.fontFamily,
+    lineHeight: settings.lineHeight,
+    showWhitespace: settings.showWhitespace,
+  }));
+  
+  // 基础功能
+  extensions.push(history());
+  extensions.push(json());
+  extensions.push(contextMenu());
+  extensions.push(keymap.of([indentWithTab, ...defaultKeymap, ...searchKeymap]));
+  
+  // 文档变更监听
+  extensions.push(EditorView.updateListener.of((update) => {
+    if (update.docChanged) {
+      window.clearTimeout(changeTimer);
+      changeTimer = window.setTimeout(() => {
+        const content = editor?.state.doc.toString() || '';
+        emit('update:modelValue', content);
+      }, 300);
+    }
+  }));
+  
+  // 自动折行
+  if (settings.wordWrap) {
+    extensions.push(EditorView.lineWrapping);
+  }
+  
+  // 滚动条样式
+  extensions.push(EditorView.theme({
+    '&': { height: '100%' },
+    '.cm-scroller': {
+      overflow: 'auto',
+      '&::-webkit-scrollbar': { width: '10px', height: '10px' },
+      '&::-webkit-scrollbar-track': { background: '#f1f5f9' },
+      '&::-webkit-scrollbar-thumb': {
+        background: '#cbd5e1',
+        borderRadius: '5px',
+        '&:hover': { background: '#94a3b8' },
+      },
+    },
+    '.cm-editor': { height: '100%' },
+    '.cm-selectionBackground': { background: '#dbeafe !important' },
+    '&.cm-focused .cm-selectionBackground': { background: '#bfdbfe !important' },
+    '.cm-foldPlaceholder': {
+      border: '1px solid #e2e8f0',
+      borderRadius: '3px',
+      backgroundColor: '#f8fafc',
+      color: '#64748b',
+      padding: '2px 6px',
+      cursor: 'pointer',
+    },
+    '.cm-lineNumbers': {
+      backgroundColor: '#f8fafc',
+      borderRight: '1px solid #e2e8f0',
+      minWidth: '40px',
+    },
+    '.cm-lineNumbers .cm-gutterElement': { padding: '0 8px' },
+    '.cm-foldGutter': { width: '16px' },
+    '.cm-foldGutter .cm-gutterElement': { padding: '0 4px' },
+  }));
+  
+  // Schema 校验（异步，单独处理）
+  if (settings.enableSchemaValidation) {
+    const schemaExt = await createJsonSchemaExtension({
+      enabled: true,
+      delay: settings.schemaValidationDelay,
+    });
+    extensions.push(...schemaExt);
+  }
+  
+  return extensions;
+}
 
 onMounted(async () => {
   if (!container.value) return;
-
-  // 根据设置动态构建扩展
-  const conditionalExtensions: Extension[] = [];
   
-  // 自动缩进（根据设置）
-  if (settings.autoIndent) {
-    conditionalExtensions.push(indentOnInput());
-    conditionalExtensions.push(indentUnit.of(' '.repeat(settings.indentSize)));
-  }
+  // 构建扩展
+  const allExtensions = await buildExtensions();
   
-  // 高亮匹配（根据设置）
-  if (settings.autoHighlightSelectionMatches) {
-    conditionalExtensions.push(highlightSelectionMatches());
-  }
-  
-  // Schema 校验（根据设置）
-  if (settings.enableSchemaValidation) {
-    conditionalExtensions.push(jsonSchemaSync()); // TODO: 配置延迟
-  }
-  
-  // 自动补全（根据设置）
-  if (settings.enableAutocomplete) {
-    conditionalExtensions.push(jsonSchemaAutocompleteExtension()); // TODO: 配置延迟和触发
-  }
-
-  // 基础扩展
-  const baseExtensions: Extension[] = [
-    lineNumbers(),
-    foldGutter(),
-    bracketMatching(),
-    ...(settings.autoCloseBrackets ? [closeBrackets()] : []),
-    history(),
-    ...conditionalExtensions, // 条件扩展
-    json(), // JSON 语言支持（包含语法高亮）
-    syntaxHighlighting(jsonHighlightStyle), // 应用语法高亮样式
-    contextMenu(), // 自定义多语言右键菜单
-    keymap.of([
-      indentWithTab, // Tab 键缩进，Shift+Tab 取消缩进
-      ...defaultKeymap, // 其他默认快捷键（包括 Ctrl+A, Ctrl+C, Ctrl+V 等）
-      ...searchKeymap, // 搜索快捷键（Ctrl+F, Ctrl+H 等）
-    ]),
-    EditorView.updateListener.of((update) => {
-      if (update.docChanged) {
-        window.clearTimeout(changeTimer);
-        changeTimer = window.setTimeout(() => {
-          const content = editor?.state.doc.toString() || '';
-          emit('update:modelValue', content);
-        }, 300);
-      }
-    }),
-    // 启用自动折行，避免横向滚动条
-    EditorView.lineWrapping,
-    // 自动布局和主题样式
-    EditorView.theme({
-      '&': {
-        height: '100%',
-      },
-      '.cm-scroller': {
-        overflow: 'auto',
-        // 自定义滚动条样式（仅在 Webkit 浏览器中）
-        '&::-webkit-scrollbar': {
-          width: '10px',
-          height: '10px',
-        },
-        '&::-webkit-scrollbar-track': {
-          background: '#f1f5f9',
-        },
-        '&::-webkit-scrollbar-thumb': {
-          background: '#cbd5e1',
-          borderRadius: '5px',
-          '&:hover': {
-            background: '#94a3b8',
-          },
-        },
-      },
-      '.cm-editor': {
-        height: '100%',
-      },
-      '.cm-content': {
-        minHeight: '100%',
-        padding: '12px', // 增加内边距，提高可读性
-      },
-      '.cm-line': {
-        lineHeight: '1.6', // 增加行高，提高可读性
-        padding: '0 4px', // 行内边距
-      },
-      // 优化选中文本样式
-      '.cm-selectionBackground': {
-        background: '#dbeafe !important', // 更明显的选中背景
-      },
-      '&.cm-focused .cm-selectionBackground': {
-        background: '#bfdbfe !important',
-      },
-      // 优化代码折叠区域
-      '.cm-foldPlaceholder': {
-        border: '1px solid #e2e8f0',
-        borderRadius: '3px',
-        backgroundColor: '#f8fafc',
-        color: '#64748b',
-        padding: '2px 6px',
-        cursor: 'pointer',
-      },
-      // 优化行号样式
-      '.cm-lineNumbers': {
-        backgroundColor: '#f8fafc',
-        borderRight: '1px solid #e2e8f0',
-        minWidth: '40px', // 增加行号宽度，支持更多行数
-      },
-      '.cm-lineNumbers .cm-gutterElement': {
-        padding: '0 8px',
-      },
-      // 优化折叠图标
-      '.cm-foldGutter': {
-        width: '16px',
-      },
-      '.cm-foldGutter .cm-gutterElement': {
-        padding: '0 4px',
-      },
-    }),
-  ];
-
   // 创建编辑器
   editor = new EditorView({
     state: EditorState.create({
       doc: props.modelValue ?? '',
-      extensions: baseExtensions,
+      extensions: allExtensions,
     }),
     parent: container.value,
-  });
-
-  // 异步加载 schema 并更新扩展
-  const schemaExtensions = await jsonSchema();
-  // 使用 StateEffect.appendConfig 来添加新扩展
-  editor.dispatch({
-    effects: StateEffect.appendConfig.of(schemaExtensions),
   });
 
   // 确保编辑器在容器大小变化时自动调整
@@ -232,7 +217,78 @@ watch(
   }
 );
 
+// 监听设置变化并重建编辑器
+let pendingReconfiguration: number | undefined;
+
+async function reconfigureEditor() {
+  if (!editor || !container.value) return;
+  
+  console.log('Reconfiguring editor with new settings...');
+  
+  // 保存当前状态
+  const currentContent = editor.state.doc.toString();
+  const currentSelection = editor.state.selection.main.head;
+  const scrollPos = editor.scrollDOM;
+  const scrollTop = scrollPos.scrollTop;
+  const scrollLeft = scrollPos.scrollLeft;
+  
+  // 重建扩展
+  const allExtensions = await buildExtensions();
+  
+  // 创建新状态
+  const newState = EditorState.create({
+    doc: currentContent,
+    extensions: allExtensions,
+    selection: { anchor: currentSelection, head: currentSelection },
+  });
+  
+  // 应用新状态
+  editor.setState(newState);
+  
+  // 恢复滚动位置
+  await nextTick();
+  editor.scrollDOM.scrollTop = scrollTop;
+  editor.scrollDOM.scrollLeft = scrollLeft;
+  
+  editor.requestMeasure();
+  editor.focus();
+  console.log('Editor reconfigured successfully');
+}
+
+watch(
+  () => ({
+    autoIndent: settings.autoIndent,
+    indentSize: settings.indentSize,
+    enableAutocomplete: settings.enableAutocomplete,
+    autocompleteActivateOnTyping: settings.autocompleteActivateOnTyping,
+    autocompleteDelay: settings.autocompleteDelay,
+    enableSchemaValidation: settings.enableSchemaValidation,
+    schemaValidationDelay: settings.schemaValidationDelay,
+    autoCloseBrackets: settings.autoCloseBrackets,
+    autoHighlightSelectionMatches: settings.autoHighlightSelectionMatches,
+    enableLineNumbers: settings.enableLineNumbers,
+    enableFoldGutter: settings.enableFoldGutter,
+    enableBracketMatching: settings.enableBracketMatching,
+    theme: settings.theme,
+    syntaxHighlightingEnabled: settings.syntaxHighlightingEnabled,
+    lineHeight: settings.lineHeight,
+    fontSize: settings.fontSize,
+    fontFamily: settings.fontFamily,
+    wordWrap: settings.wordWrap,
+    showWhitespace: settings.showWhitespace,
+  }),
+  async () => {
+    // 防抖：300ms 内的多次变化只触发一次重建
+    clearTimeout(pendingReconfiguration);
+    pendingReconfiguration = window.setTimeout(() => {
+      reconfigureEditor();
+    }, 300);
+  },
+  { deep: true }
+);
+
 onBeforeUnmount(() => {
+  clearTimeout(pendingReconfiguration);
   if (resizeObserver) {
     resizeObserver.disconnect();
     resizeObserver = null;

@@ -1,4 +1,5 @@
 import { EditorView } from '@codemirror/view';
+import { Extension } from '@codemirror/state';
 
 /**
  * 编辑器主题配置接口
@@ -13,7 +14,7 @@ export interface EditorThemeConfig {
 /**
  * 创建编辑器主题扩展
  */
-export function createEditorTheme(config: EditorThemeConfig) {
+export function createEditorTheme(config: EditorThemeConfig): Extension[] {
   return [
     EditorView.theme({
       '&': { height: '100%' },
