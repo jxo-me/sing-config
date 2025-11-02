@@ -997,14 +997,19 @@ function isPropertyNameContext(context: CompletionContext): boolean {
         return false;
       }
       
+      // 检查是否在 : { 之后（已进入对象内部，应该显示属性名补全）
+      if (content.includes(':') && content.trim().endsWith('{')) {
+        console.log('[Autocomplete] JsonText 文本匹配：在 : { 之后，应该显示属性名补全，内容:', content);
+        return true;
+      }
+      
       // 如果没有冒号，说明还在输入属性名
-      // 重要：如果包含冒号，说明已经在属性值位置，不应该触发属性名补全
       if (!content.includes(':')) {
         console.log('[Autocomplete] JsonText 文本匹配：在对象开始或逗号后（方法2），内容:', content);
         return true;
       } else {
-        // 包含冒号，说明已经在值位置，不应该触发属性名补全
-        console.log('[Autocomplete] JsonText 排除：内容包含冒号，可能在值位置');
+        // 包含冒号但没有 {，说明已经在值位置（如 : "value"），不应该触发属性名补全
+        console.log('[Autocomplete] JsonText 排除：内容包含冒号但没有 {，可能在值位置');
         return false;
       }
     }
