@@ -1344,17 +1344,49 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
         }
       }
       
+      // 最终验证：确保 from 和 to 在有效范围内
+      const docLength = context.state.doc.length;
+      const validFrom = Math.max(0, Math.min(from, docLength));
+      const validTo = Math.max(validFrom, Math.min(context.pos, docLength));
+      
       console.log('[Autocomplete] 值补全最终位置:', {
         from,
         to: context.pos,
-        '替换范围长度': context.pos - from,
-        '替换内容': lineText.substring(from - lineStart, context.pos - lineStart),
+        validFrom,
+        validTo,
+        '替换范围长度': validTo - validFrom,
+        '替换内容': lineText.substring(validFrom - lineStart, validTo - lineStart),
         isInString,
+        '补全项数量': completions.length,
+        '补全项标签': completions.map(c => c.label),
       });
       
+      // 确保有补全项且位置有效
+      if (completions.length === 0) {
+        console.warn('[Autocomplete] 值补全：补全项为空');
+        return null;
+      }
+      
+      if (validFrom >= validTo && validTo < docLength) {
+        // 如果 from === to，尝试调整 from 以确保显示
+        // 在某些情况下，CodeMirror 需要在有效范围内才能显示
+        const adjustedFrom = Math.max(0, validTo - 1);
+        console.log('[Autocomplete] 值补全：调整 from 位置', {
+          originalFrom: validFrom,
+          adjustedFrom,
+          to: validTo,
+        });
+        
+        return {
+          from: adjustedFrom,
+          to: validTo,
+          options: completions,
+        };
+      }
+      
       return {
-        from,
-        to: context.pos,
+        from: validFrom,
+        to: validTo,
         options: completions,
       };
     }
