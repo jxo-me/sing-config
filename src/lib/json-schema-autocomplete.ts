@@ -990,9 +990,14 @@ function isPropertyNameContext(context: CompletionContext): boolean {
       }
       
       // 如果没有冒号，说明还在输入属性名
+      // 重要：如果包含冒号，说明已经在属性值位置，不应该触发属性名补全
       if (!content.includes(':')) {
         console.log('[Autocomplete] JsonText 文本匹配：在对象开始或逗号后（方法2），内容:', content);
         return true;
+      } else {
+        // 包含冒号，说明已经在值位置，不应该触发属性名补全
+        console.log('[Autocomplete] JsonText 排除：内容包含冒号，可能在值位置');
+        return false;
       }
     }
     
@@ -1060,10 +1065,28 @@ function isValueContext(context: CompletionContext): boolean {
   const before = context.state.sliceDoc(Math.max(0, pos - 30), pos);
   const after = context.state.sliceDoc(pos, Math.min(context.state.doc.length, pos + 10));
   
-  // 匹配冒号后的情况：: 或 :  或 :" 等
-  if (before.match(/:\s*"?\s*$/)) {
+  // 匹配冒号后的情况：: 或 :  或 :" 或 :"" (光标在引号内) 等
+  // 关键：应该在 : 后就触发，不需要等待引号
+  if (before.match(/:\s*$/)) {
+    // 在冒号后，空格后 - 应该触发值补全
     console.log('[Autocomplete] 文本匹配：在冒号后（测试用例 4, 5, 6, 7）');
     return true;
+  }
+  
+  // 匹配 :" 的情况（光标在引号前）
+  if (before.match(/:\s*"$/)) {
+    console.log('[Autocomplete] 文本匹配：在冒号后引号前');
+    return true;
+  }
+  
+  // 匹配 :"" 的情况（光标在字符串内）
+  if (before.match(/:\s*"[^"]*$/) || (before.includes('"') && after.startsWith('"'))) {
+    // 检查是否在字符串内部（两个引号之间）
+    const stringMatch = before.match(/:\s*"([^"]*)$/);
+    if (stringMatch) {
+      console.log('[Autocomplete] 文本匹配：在冒号后的字符串内');
+      return true;
+    }
   }
   
   // 测试用例 4：在冒号后输入 { 也应该触发对象补全
@@ -1105,8 +1128,10 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
   }
   
   // 判断是在属性名位置还是值位置（即使 schema 为 null 也要判断）
-  const isProperty = isPropertyNameContext(context);
+  // 重要：先判断值位置，因为值位置的优先级更高
+  // 如果在冒号后，应该优先显示值补全，而不是属性名补全
   const isValue = isValueContext(context);
+  const isProperty = isPropertyNameContext(context) && !isValue; // 如果已经在值位置，不应该触发属性名补全
   
   console.log('[Autocomplete] 上下文判断:', {
     jsonPath: path, // 测试用例 10：嵌套路径，如 ["dns"]
@@ -1115,6 +1140,7 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
     hasCurrentSchema: !!currentSchema,
     pathLength: path.length,
     '路径详情': path.length > 0 ? `嵌套深度 ${path.length}` : '根对象',
+    '判断顺序': '先判断值位置，再判断属性名位置',
   });
   
   if (isProperty) {
