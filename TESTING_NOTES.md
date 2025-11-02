@@ -1,74 +1,88 @@
-# 自动补全测试注意事项
+# 编辑器设置系统
 
 ## 当前状态
 
-已完全关闭以下功能，便于测试自动补全：
-- ✅ JSON Schema 同步校验（jsonSchemaSync）
-- ✅ JSON Schema 异步校验（jsonSchema）
-- ✅ **自动缩进（indentOnInput）** - 解决图1→图2问题
-- ✅ **JSON 格式检测（needsRepair）** - 解决图3错误提示问题
-- ✅ 编辑器右侧错误面板
-- ✅ 自动修复按钮
-- ⚠️ **自动补全功能保持启用**
+**已创建完整的设置系统，所有自动化功能默认关闭**：
 
-## 如何恢复
+### 可配置功能列表
 
-测试完成后，运行以下命令恢复：
+#### 📝 格式化
+- **自动缩进** (`autoIndent`) - 默认关闭
+- **缩进大小** (`indentSize`) - 默认 2 空格
+- **加载时格式化** (`autoFormatOnLoad`) - 默认关闭
+- **保存时格式化** (`autoFormatOnSave`) - 默认关闭
+- **切换模式时格式化** (`autoFormatOnModeSwitch`) - 默认关闭
 
-```bash
-git revert bb577a1 12d69b1
-```
+#### ✓ 校验
+- **Schema 校验** (`enableSchemaValidation`) - 默认关闭
+- **校验延迟** (`schemaValidationDelay`) - 默认 800ms
+- **格式检测** (`enableFormatDetection`) - 默认关闭
+- **自动修复按钮** (`showAutoRepairButton`) - 默认关闭
 
-或手动恢复：
+#### ⚡ 自动补全
+- **启用自动补全** (`enableAutocomplete`) - 默认开启
+- **输入时自动触发** (`autocompleteActivateOnTyping`) - 默认开启
+- **补全延迟** (`autocompleteDelay`) - 默认 0ms
 
-**src/components/JsonEditor.vue**:
-1. 第 10 行：取消注释 `import { indentOnInput, indentUnit }`
-2. 第 15 行：取消注释 `import { jsonSchema, jsonSchemaSync }`
-3. 第 77-78 行：取消注释 `indentOnInput()` 和 `indentUnit.of('  ')`
-4. 第 82 行：取消注释 `jsonSchemaSync()`
-5. 第 4 行：添加 `StateEffect` 到导入
-6. 第 180-184 行：取消注释 `await jsonSchema()` 相关代码
+#### 🔧 编辑辅助
+- **自动闭合括号** (`autoCloseBrackets`) - 默认开启
+- **高亮匹配项** (`autoHighlightSelectionMatches`) - 默认开启
 
-**src/pages/Editor.vue**:
-1. 第 22 行：取消注释 `import { isValidJson }`
-2. 第 167-171 行：恢复 `needsRepair` 原始逻辑
+### 使用方法
 
-## 测试要点
+1. **打开设置界面**：点击顶部工具栏的 ⚙️ 按钮
+2. **调整配置**：在各个分类中切换开关和调整参数
+3. **保存生效**：点击"保存"按钮，设置立即生效并持久化
 
-### 应该测试的功能
+### 技术实现
 
-1. **触发机制**
-   - Ctrl/Cmd+Space 手动触发
+- **设置存储**：`localStorage` 持久化，刷新后保留
+- **配置管理**：`src/stores/settings.ts` - reactive store
+- **界面组件**：`src/components/EditorSettings.vue` - 纯 HTML 对话框
+- **动态应用**：JsonEditor 和 Editor 组件根据设置动态加载扩展
+
+## 测试指南
+
+### 🎯 推荐的纯净测试环境配置
+
+**进入设置界面（点击 ⚙️），关闭所有干扰功能**：
+
+✅ **必须开启**：
+- 自动补全 → 启用自动补全 ✓
+- 自动补全 → 输入时自动触发 ✓
+
+❌ **必须关闭**：
+- 格式化 → 自动缩进 ✗
+- 校验 → Schema 校验 ✗
+- 校验 → 格式检测 ✗
+
+### 自动补全测试重点
+
+1. **触发机制测试**
+   - `Ctrl+Space` / `Cmd+Space` 手动触发
    - 输入 `{` 后自动触发
-   - 输入 `,` 后自动触发  
+   - 输入 `,` 后自动触发
    - 输入 `:` 后自动触发
-   - 输入任意字符匹配
+   - 输入任意字符匹配过滤
 
-2. **补全内容**
-   - 属性名补全列表
-   - 属性值补全列表
-   - 默认值自动插入
-   - 智能引号处理
+2. **补全内容测试**
+   - 属性名列表是否完整
+   - 属性值（枚举、布尔、null）是否正确
+   - 默认值是否自动插入
+   - 智能引号处理是否准确
 
-3. **交互行为**
-   - 方向键导航
-   - Enter 确认
-   - Tab 确认
-   - Escape 关闭
+3. **交互体验测试**
+   - 方向键导航流畅
+   - Enter/Tab 确认选择
+   - Escape 关闭补全
+   - 无重复引号问题
 
-### 不需要测试的功能
+### 问题排查
 
-- Schema 校验错误提示
-- 右侧错误面板
-- 自动修复功能
-- 实时验证
-- **自动缩进（Enter 键）**
-- **JSON 格式检测**
-
-### 已修复的问题
-
-- ✅ 图1→图2：输入 `{\n|\n}` 按回车不再自动缩进
-- ✅ 图3错误提示：输入 `{d|}` 不再显示"检测到无效的 JSON 格式"
+如遇到干扰：
+1. 检查设置界面：确认干扰功能已关闭
+2. 刷新页面：清除缓存
+3. 查看 localStorage：确认设置已保存
 
 ## 测试命令
 
@@ -104,6 +118,16 @@ pnpm tauri dev
 
 测试完成后：
 1. 记录所有发现的问题
-2. 运行 `git revert 12d69b1` 恢复校验
-3. 根据问题修复自动补全逻辑
-4. 重新测试（包含校验功能）
+2. 根据问题修复自动补全逻辑
+3. 调整设置系统（如果需要）
+4. 重新测试（使用设置系统配置功能）
+
+---
+
+## 📝 历史记录
+
+### 之前的临时禁用方案（已废弃）
+
+之前通过手动注释代码临时关闭功能，现在使用设置系统控制：
+- ❌ 旧方案：`git revert bb577a1 12d69b1` 手动恢复
+- ✅ 新方案：点击 ⚙️ 设置按钮，优雅配置所有功能
