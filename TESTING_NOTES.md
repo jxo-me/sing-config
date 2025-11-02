@@ -2,10 +2,13 @@
 
 ## 当前状态
 
-已临时关闭以下功能，便于测试自动补全：
+已完全关闭以下功能，便于测试自动补全：
 - ✅ JSON Schema 同步校验（jsonSchemaSync）
 - ✅ JSON Schema 异步校验（jsonSchema）
-- ✅ 编辑器右侧错误面板（无验证即无错误）
+- ✅ **自动缩进（indentOnInput）** - 解决图1→图2问题
+- ✅ **JSON 格式检测（needsRepair）** - 解决图3错误提示问题
+- ✅ 编辑器右侧错误面板
+- ✅ 自动修复按钮
 - ⚠️ **自动补全功能保持启用**
 
 ## 如何恢复
@@ -13,14 +16,22 @@
 测试完成后，运行以下命令恢复：
 
 ```bash
-git revert 12d69b1
+git revert bb577a1 12d69b1
 ```
 
-或手动在 `src/components/JsonEditor.vue` 中取消注释：
-1. 第 15 行：`import { jsonSchema, jsonSchemaSync }`
-2. 第 82 行：`jsonSchemaSync()`
-3. 第 180-184 行：`await jsonSchema()` 相关代码
-4. 第 4 行：添加 `StateEffect` 到导入
+或手动恢复：
+
+**src/components/JsonEditor.vue**:
+1. 第 10 行：取消注释 `import { indentOnInput, indentUnit }`
+2. 第 15 行：取消注释 `import { jsonSchema, jsonSchemaSync }`
+3. 第 77-78 行：取消注释 `indentOnInput()` 和 `indentUnit.of('  ')`
+4. 第 82 行：取消注释 `jsonSchemaSync()`
+5. 第 4 行：添加 `StateEffect` 到导入
+6. 第 180-184 行：取消注释 `await jsonSchema()` 相关代码
+
+**src/pages/Editor.vue**:
+1. 第 22 行：取消注释 `import { isValidJson }`
+2. 第 167-171 行：恢复 `needsRepair` 原始逻辑
 
 ## 测试要点
 
@@ -51,6 +62,13 @@ git revert 12d69b1
 - 右侧错误面板
 - 自动修复功能
 - 实时验证
+- **自动缩进（Enter 键）**
+- **JSON 格式检测**
+
+### 已修复的问题
+
+- ✅ 图1→图2：输入 `{\n|\n}` 按回车不再自动缩进
+- ✅ 图3错误提示：输入 `{d|}` 不再显示"检测到无效的 JSON 格式"
 
 ## 测试命令
 
