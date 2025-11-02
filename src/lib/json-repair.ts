@@ -14,6 +14,7 @@ export interface RepairResult {
 /**
  * 主修复函数
  * 处理各种 JSON 语法错误并自动修复
+ * 优化：先处理致命错误（未闭合字符串等），再处理常规错误
  */
 export function repairJson(text: string): RepairResult {
   if (!text || text.trim() === '') {
@@ -27,9 +28,12 @@ export function repairJson(text: string): RepairResult {
   const changes: string[] = [];
   let repaired = text.trim();
 
-  // 1. 移除 BOM 和零宽度字符
+  // 0. 移除 BOM 和零宽度字符（优先级最高）
   repaired = repaired.replace(/^\uFEFF/, ''); // 移除 BOM
   repaired = repaired.replace(/[\u200B-\u200D\uFEFF]/g, ''); // 移除零宽度字符
+
+  // 1. 修复致命错误（未闭合字符串、未闭合括号等）- 优先级最高
+  repaired = fixCriticalErrors(repaired, changes);
 
   // 2. 修复注释
   repaired = removeComments(repaired);
@@ -40,19 +44,16 @@ export function repairJson(text: string): RepairResult {
   // 4. 修复单引号为双引号
   repaired = fixSingleQuotes(repaired, changes);
 
-  // 5. 修复对象/数组的分隔符
-  repaired = fixCommas(repaired, changes);
-
-  // 6. 修复尾随逗号
-  repaired = fixTrailingCommas(repaired, changes);
-
-  // 7. 添加缺失的大括号/方括号
-  repaired = fixMissingBraces(repaired, changes);
-
-  // 8. 修复属性名缺少引号
+  // 5. 修复属性名缺少引号（在修复逗号之前，避免干扰）
   repaired = fixUnquotedKeys(repaired, changes);
 
-  // 9. 修复未转义的反斜杠
+  // 6. 修复对象/数组的分隔符
+  repaired = fixCommas(repaired, changes);
+
+  // 7. 修复尾随逗号
+  repaired = fixTrailingCommas(repaired, changes);
+
+  // 8. 修复未转义的反斜杠
   repaired = fixUnescapedBackslashes(repaired, changes);
 
   // 10. 验证修复后的 JSON
@@ -82,6 +83,111 @@ export function repairJson(text: string): RepairResult {
       };
     }
   }
+}
+
+/**
+ * 修复致命错误（未闭合字符串、未闭合括号等）
+ * 优先级最高：这些错误会导致 JSON 完全无法解析
+ */
+function fixCriticalErrors(text: string, changes: string[]): string {
+  let result = text;
+  
+  // 1. 修复未闭合的字符串
+  result = fixUnterminatedStrings(result, changes);
+  
+  // 2. 修复未闭合的括号（对象/数组）
+  result = fixUnclosedBracesAndBrackets(result, changes);
+  
+  return result;
+}
+
+/**
+ * 修复未闭合的字符串
+ */
+function fixUnterminatedStrings(text: string, changes: string[]): string {
+  let result = text;
+  let inString = false;
+  let escaped = false;
+  
+  for (let i = 0; i < result.length; i++) {
+    const char = result[i];
+    
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    
+    if (char === '"') {
+      inString = !inString;
+    }
+  }
+  
+  // 如果字符串未闭合
+  if (inString) {
+    // 在行末添加闭合引号
+    result = result + '"';
+    if (!changes.some(c => c.includes('未闭合字符串'))) {
+      changes.push('修复未闭合的字符串');
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * 修复未闭合的括号和方括号
+ * 在检测到未闭合的情况时，在文档末尾添加缺失的闭合括号
+ */
+function fixUnclosedBracesAndBrackets(text: string, changes: string[]): string {
+  let result = text;
+  
+  // 统计括号
+  let openBraces = 0;
+  let openBrackets = 0;
+  
+  for (let i = 0; i < result.length; i++) {
+    const char = result[i];
+    
+    // 检查引号内的字符不计数
+    let inString = false;
+    let escaped = false;
+    for (let j = 0; j < i; j++) {
+      if (result[j] === '\\') {
+        escaped = !escaped;
+      } else if (result[j] === '"' && !escaped) {
+        inString = !inString;
+      }
+    }
+    
+    if (!inString) {
+      if (char === '{') openBraces++;
+      else if (char === '}') openBraces--;
+      else if (char === '[') openBrackets++;
+      else if (char === ']') openBrackets--;
+    }
+  }
+  
+  // 添加缺失的闭合括号
+  if (openBraces > 0) {
+    result = result + '}'.repeat(openBraces);
+    if (!changes.some(c => c.includes('未闭合大括号'))) {
+      changes.push(`添加 ${openBraces} 个缺失的闭合大括号`);
+    }
+  }
+  
+  if (openBrackets > 0) {
+    result = result + ']'.repeat(openBrackets);
+    if (!changes.some(c => c.includes('未闭合方括号'))) {
+      changes.push(`添加 ${openBrackets} 个缺失的闭合方括号`);
+    }
+  }
+  
+  return result;
 }
 
 /**
@@ -193,38 +299,6 @@ function fixTrailingCommas(text: string, changes: string[]): string {
   return result;
 }
 
-/**
- * 修复缺失的大括号/方括号
- */
-function fixMissingBraces(text: string, changes: string[]): string {
-  let result = text;
-  
-  // 统计括号
-  const openBraces = (result.match(/{/g) || []).length;
-  const closeBraces = (result.match(/}/g) || []).length;
-  const openBrackets = (result.match(/\[/g) || []).length;
-  const closeBrackets = (result.match(/\]/g) || []).length;
-  
-  // 修复缺失的闭合大括号
-  if (openBraces > closeBraces) {
-    const missing = openBraces - closeBraces;
-    result = result + '}'.repeat(missing);
-    if (!changes.some(c => c.includes('大括号'))) {
-      changes.push(`添加 ${missing} 个缺失的大括号`);
-    }
-  }
-  
-  // 修复缺失的闭合方括号
-  if (openBrackets > closeBrackets) {
-    const missing = openBrackets - closeBrackets;
-    result = result + ']'.repeat(missing);
-    if (!changes.some(c => c.includes('方括号'))) {
-      changes.push(`添加 ${missing} 个缺失的方括号`);
-    }
-  }
-  
-  return result;
-}
 
 /**
  * 修复未加引号的属性名
