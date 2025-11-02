@@ -1319,12 +1319,16 @@ export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig
     const pos = state.selection.main.head;
     
     // 创建临时的 CompletionContext 来重用现有的上下文判断逻辑
-    const tempContext: CompletionContext = {
+    // 使用类型断言来创建最小化的 CompletionContext
+    const tempContext = {
       state,
       pos,
       explicit: true, // 标记为显式触发
       matchBefore: '',
-    } as CompletionContext;
+      tokenBefore: () => null,
+      aborted: false,
+      addEventListener: () => () => {},
+    } as unknown as CompletionContext;
     
     // 使用已有的上下文判断函数
     const isProperty = isPropertyNameContext(tempContext);
