@@ -6,7 +6,7 @@ import { json } from '@codemirror/lang-json';
 import { foldGutter, foldedRanges, foldEffect } from '@codemirror/language';
 import { bracketMatching, indentOnInput, indentUnit } from '@codemirror/language';
 import { highlightSelectionMatches, searchKeymap, openSearchPanel } from '@codemirror/search';
-import { history, defaultKeymap, indentWithTab, indentMore, indentSelection, undo, redo } from '@codemirror/commands';
+import { history, defaultKeymap, indentSelection, undo, redo } from '@codemirror/commands';
 import { keymap } from '@codemirror/view';
 import { closeBrackets } from '@codemirror/autocomplete';
 import { createJsonSchemaExtension } from '../lib/codemirror-json-schema';
