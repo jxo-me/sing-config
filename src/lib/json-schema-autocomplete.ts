@@ -931,10 +931,14 @@ function isPropertyNameContext(context: CompletionContext): boolean {
   let searchNode: ReturnType<typeof tree.resolve> = node;
   while (searchNode) {
     if (searchNode.name === 'JsonObject') {
-      const before = context.state.sliceDoc(Math.max(0, pos - 20), pos);
+      const before = context.state.sliceDoc(Math.max(0, pos - 30), pos);
       // 检查是否在 { 之后或 , 之后
-      if (before.match(/[{,]\s*"?$/)) {
-        console.log('[Autocomplete] 在 JsonObject 内，文本匹配成功');
+      // 重要：也包括 : { 之后的情况（在对象值位置，但已经输入了 {）
+      if (before.match(/[{,]\s*"?$/) || before.match(/:\s*\{/)) {
+        console.log('[Autocomplete] 在 JsonObject 内，文本匹配成功', {
+          match1: before.match(/[{,]\s*"?$/),
+          match2: before.match(/:\s*\{/),
+        });
         return true;
       }
       break;
@@ -958,8 +962,12 @@ function isPropertyNameContext(context: CompletionContext): boolean {
     // 4. ,xxx 或 ,"xxx  - 逗号后的新属性
     
     // 方法1：简单的正则匹配 - 检查是否以 { 或 , 开头，后面跟非冒号字符
-    if (before.match(/[{,]\s*"?[^:}]*$/)) {
-      console.log('[Autocomplete] JsonText 文本匹配：在对象开始或逗号后（正则1）');
+    // 重要：也包括 : { 之后的情况（在对象值位置，但已经输入了 {）
+    if (before.match(/[{,]\s*"?[^:}]*$/) || before.match(/:\s*\{/)) {
+      console.log('[Autocomplete] JsonText 文本匹配：在对象开始或逗号后（正则1）', {
+        match1: before.match(/[{,]\s*"?[^:}]*$/),
+        match2: before.match(/:\s*\{/),
+      });
       return true;
     }
     
@@ -1065,6 +1073,13 @@ function isValueContext(context: CompletionContext): boolean {
   const before = context.state.sliceDoc(Math.max(0, pos - 30), pos);
   const after = context.state.sliceDoc(pos, Math.min(context.state.doc.length, pos + 10));
   
+  // 重要：如果在 : { 之后（即已经输入了 {），应该识别为属性名上下文，而不是值上下文
+  // 例如："dns": { 应该显示属性名补全，而不是值补全
+  if (before.match(/:\s*\{/)) {
+    console.log('[Autocomplete] 排除：已在对象内部（: {），应该是属性名上下文，不是值上下文');
+    return false;
+  }
+  
   // 匹配冒号后的情况：: 或 :  或 :" 或 :"" (光标在引号内) 等
   // 关键：应该在 : 后就触发，不需要等待引号
   if (before.match(/:\s*$/)) {
@@ -1087,12 +1102,6 @@ function isValueContext(context: CompletionContext): boolean {
       console.log('[Autocomplete] 文本匹配：在冒号后的字符串内');
       return true;
     }
-  }
-  
-  // 测试用例 4：在冒号后输入 { 也应该触发对象补全
-  if (after.startsWith('{') && before.match(/:\s*$/)) {
-    console.log('[Autocomplete] 文本匹配：在冒号后输入 {，触发对象补全（测试用例 4）');
-    return true;
   }
   
   return false;
