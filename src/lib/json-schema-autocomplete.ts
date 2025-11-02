@@ -737,7 +737,29 @@ function isPropertyNameContext(context: CompletionContext): boolean {
   const pos = context.pos;
   const node: ReturnType<typeof tree.resolve> = tree.resolve(pos, 1);
   
-  if (!node) return false;
+  console.log('[Autocomplete] isPropertyNameContext 检查:', {
+    pos,
+    nodeName: node?.name,
+    nodeType: node?.type?.name,
+    docBefore: context.state.sliceDoc(Math.max(0, pos - 10), pos),
+  });
+  
+  if (!node) {
+    console.log('[Autocomplete] isPropertyNameContext: node 为空，检查文本匹配');
+    // 即使语法树无法解析，也尝试基于文本判断
+    const before = context.state.sliceDoc(Math.max(0, pos - 30), pos);
+    const after = context.state.sliceDoc(pos, Math.min(context.state.doc.length, pos + 10));
+    console.log('[Autocomplete] 文本检查:', { before, after });
+    
+    // 检查是否在 { 之后或 , 之后，准备输入属性名
+    // 改进正则：匹配 { 或 , 后面，可能是空白、引号，或者直接是字符（属性名）
+    // 但不能包含 : (冒号，说明已经是值了)
+    if (before.match(/[{,]\s*"?[^:}]*$/)) {
+      console.log('[Autocomplete] 文本匹配：在对象开始或逗号后');
+      return true;
+    }
+    return false;
+  }
   
   // 检查是否在属性名中或属性名之后
   let current: ReturnType<typeof tree.resolve> = node;
@@ -775,7 +797,26 @@ function isValueContext(context: CompletionContext): boolean {
   const pos = context.pos;
   const node: ReturnType<typeof tree.resolve> = tree.resolve(pos, 1);
   
-  if (!node) return false;
+  console.log('[Autocomplete] isValueContext 检查:', {
+    pos,
+    nodeName: node?.name,
+    docBefore: context.state.sliceDoc(Math.max(0, pos - 10), pos),
+    docAfter: context.state.sliceDoc(pos, Math.min(context.state.doc.length, pos + 10)),
+  });
+  
+  if (!node) {
+    console.log('[Autocomplete] isValueContext: node 为空，检查文本匹配');
+    // 即使语法树无法解析，也尝试基于文本判断
+    const before = context.state.sliceDoc(Math.max(0, pos - 30), pos);
+    console.log('[Autocomplete] 文本检查:', { before });
+    
+    // 检查是否在 : 之后（属性值位置）
+    if (before.match(/:\s*"?\s*$/)) {
+      console.log('[Autocomplete] 文本匹配：在冒号后（值位置）');
+      return true;
+    }
+    return false;
+  }
   
   let current: ReturnType<typeof tree.resolve> = node;
   while (current) {
@@ -821,13 +862,15 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
   }
   
   const path = getJsonPath(context.state, context.pos);
-  const currentSchema = resolveSchemaPath(cachedSchema, path, cachedSchema);
+  let currentSchema = resolveSchemaPath(cachedSchema, path, cachedSchema);
   
-  if (!currentSchema) {
-    return null;
+  // 如果路径为空或 schema 解析失败，使用根 schema（用于无效 JSON 的情况）
+  if (!currentSchema && path.length === 0) {
+    currentSchema = cachedSchema;
+    console.log('[Autocomplete] 路径为空，使用根 Schema');
   }
   
-  // 判断是在属性名位置还是值位置
+  // 判断是在属性名位置还是值位置（即使 schema 为 null 也要判断）
   const isProperty = isPropertyNameContext(context);
   const isValue = isValueContext(context);
   
@@ -841,10 +884,19 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
   if (isProperty) {
     // 属性名补全
     // 需要找到父级 schema
-    const parentPath = path.slice(0, -1);
-    const parentSchema = parentPath.length > 0 
-      ? resolveSchemaPath(cachedSchema, parentPath, cachedSchema) 
-      : cachedSchema;
+    let parentSchema: JsonSchema | null = null;
+    
+    if (path.length > 0) {
+      // 有路径，使用父级路径
+      const parentPath = path.slice(0, -1);
+      parentSchema = parentPath.length > 0 
+        ? resolveSchemaPath(cachedSchema, parentPath, cachedSchema) 
+        : cachedSchema;
+    } else {
+      // 路径为空，直接使用根 schema（在对象开始位置）
+      parentSchema = cachedSchema;
+      console.log('[Autocomplete] 路径为空，属性名补全使用根 Schema');
+    }
     
     console.log('[Autocomplete] 属性名补全，父级 Schema:', !!parentSchema);
     
@@ -868,6 +920,10 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
   } else if (isValue) {
     // 值补全
     console.log('[Autocomplete] 值补全，当前 Schema:', !!currentSchema);
+    if (!currentSchema) {
+      console.log('[Autocomplete] 值补全：当前 Schema 为 null，无法补全');
+      return null;
+    }
     const completions = getValueCompletions(currentSchema, context);
     console.log('[Autocomplete] 找到', completions.length, '个值补全项');
     if (completions.length > 0) {
