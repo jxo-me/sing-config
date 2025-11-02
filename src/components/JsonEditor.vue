@@ -6,7 +6,7 @@ import { json } from '@codemirror/lang-json';
 import { foldGutter, foldedRanges, foldEffect } from '@codemirror/language';
 import { bracketMatching, indentOnInput, indentUnit } from '@codemirror/language';
 import { highlightSelectionMatches, searchKeymap, openSearchPanel } from '@codemirror/search';
-import { history, defaultKeymap, indentWithTab, undo, redo } from '@codemirror/commands';
+import { history, defaultKeymap, indentWithTab, indentMore, indentSelection, undo, redo } from '@codemirror/commands';
 import { keymap } from '@codemirror/view';
 import { closeBrackets } from '@codemirror/autocomplete';
 import { createJsonSchemaExtension } from '../lib/codemirror-json-schema';
@@ -135,9 +135,67 @@ async function buildExtensions(): Promise<Extension[]> {
   extensions.push(json());
   extensions.push(contextMenu());
   
-  // 恢复 Tab 键缩进功能，移除补全触发
-  // defaultKeymap 中包含 indentWithTab，会自动处理 Tab 键缩进
-  extensions.push(keymap.of([indentWithTab, ...defaultKeymap, ...searchKeymap]));
+  // 自定义 Tab 键行为：
+  // - 单个光标位置：从光标位置插入缩进空格（不从整行开始）
+  // - 多行选中：整行缩进所有选中的行
+  const customTabCommand = (view: EditorView) => {
+    const state = view.state;
+    const selection = state.selection;
+    const ranges = selection.ranges;
+    
+    // 检查是否有多个选择或多个行被选中
+    let hasMultipleLines = false;
+    if (ranges.length > 1) {
+      // 多个独立选择，视为多行
+      hasMultipleLines = true;
+    } else {
+      const mainRange = ranges[0];
+      if (mainRange.empty) {
+        // 单个光标位置：从光标位置插入缩进空格（不从整行开始）
+        const indentStr = ' '.repeat(settings.indentSize);
+        view.dispatch({
+          changes: {
+            from: mainRange.head,
+            insert: indentStr,
+          },
+          selection: { anchor: mainRange.head + indentStr.length },
+        });
+        return true;
+      } else {
+        // 有选中文本，检查是否跨越多行
+        const fromLine = state.doc.lineAt(mainRange.from);
+        const toLine = state.doc.lineAt(mainRange.to);
+        hasMultipleLines = fromLine.number !== toLine.number;
+      }
+    }
+    
+    // 如果有多个行被选中，使用标准的多行缩进（整行缩进）
+    if (hasMultipleLines) {
+      return indentSelection(view);
+    }
+    
+    // 单行选中：在光标位置插入缩进空格
+    const mainRange = ranges[0];
+    const indentStr = ' '.repeat(settings.indentSize);
+    view.dispatch({
+      changes: {
+        from: mainRange.head,
+        insert: indentStr,
+      },
+      selection: { anchor: mainRange.head + indentStr.length },
+    });
+    return true;
+  };
+  
+  // 使用自定义 Tab 键处理，移除默认的 indentWithTab
+  extensions.push(keymap.of([
+    {
+      key: 'Tab',
+      run: customTabCommand,
+    },
+    ...defaultKeymap,
+    ...searchKeymap,
+  ]));
   
   // 文档变更监听
   extensions.push(EditorView.updateListener.of((update) => {
