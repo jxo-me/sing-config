@@ -19,6 +19,7 @@ import { editorErrors, editorValidationState } from '../lib/codemirror-json-sche
 import { setupMenuHandlers, cleanupMenuHandlers, setTopbarRef, setEditorRef } from '../lib/menu-handler';
 import { invoke } from '@tauri-apps/api/core';
 import { useResponsive } from '../composables/useResponsive';
+import { repairJson, isValidJson } from '../lib/json-repair';
 
 const { t, currentLocale, setLocale } = useI18n();
 
@@ -139,6 +140,34 @@ async function validateNow() {
     await runValidation();
   }
 }
+
+// 自动修复 JSON
+async function handleAutoRepair() {
+  if (!text.value) return;
+  
+  const result = repairJson(text.value);
+  
+  if (result.success) {
+    // 修复成功，更新编辑器和配置
+    text.value = result.repaired;
+    await loadFromText(result.repaired);
+    
+    // 显示修复成功的消息
+    console.log('JSON 自动修复成功:', result.changes);
+  } else {
+    // 修复失败，显示错误
+    console.error('JSON 自动修复失败:', result.error);
+    alert(currentLocale.value === 'zh' 
+      ? `自动修复失败：${result.error}` 
+      : `Auto repair failed: ${result.error}`);
+  }
+}
+
+// 检查当前 JSON 是否需要修复
+const needsRepair = computed(() => {
+  if (mode.value !== 'json') return false;
+  return !isValidJson(text.value);
+});
 
 // 计算当前显示的错误（JSON 模式用编辑器错误，表单模式用 lastValidation）
 const displayedErrors = computed(() => {
@@ -741,11 +770,25 @@ async function gotoError(path: string) {
           
           <div v-show="activeTab === 'errors'" class="tab-content">
             <button @click="validateNow" class="validate-btn" v-if="mode === 'form'">{{ t.common.validate }}</button>
-            <div v-if="mode === 'json'" class="validation-status">
+            <button 
+              @click="handleAutoRepair" 
+              class="repair-btn" 
+              v-if="mode === 'json' && needsRepair"
+            >
+              🔧 {{ currentLocale === 'zh' ? '自动修复' : 'Auto Repair' }}
+            </button>
+            <div v-if="mode === 'json' && !needsRepair" class="validation-status">
               <span class="status-text">
                 {{ currentLocale === 'zh' 
                   ? `实时校验中... (${currentErrorCount} 个错误)` 
                   : `Real-time validation... (${currentErrorCount} errors)` }}
+              </span>
+            </div>
+            <div v-if="mode === 'json' && needsRepair" class="repair-status">
+              <span class="status-text">
+                ⚠️ {{ currentLocale === 'zh' 
+                  ? '检测到无效的 JSON 格式，请点击"自动修复"按钮' 
+                  : 'Invalid JSON format detected, click "Auto Repair"' }}
               </span>
             </div>
             <ul class="errors">
@@ -753,7 +796,7 @@ async function gotoError(path: string) {
                 <span class="path">{{ e.path || (currentLocale === 'zh' ? '(根)' : '(root)') }}</span>
                 <span class="msg">{{ e.message }}</span>
               </li>
-              <li v-if="displayedErrors.length === 0" class="no-errors">
+              <li v-if="displayedErrors.length === 0 && !needsRepair" class="no-errors">
                 {{ currentLocale === 'zh' ? '没有错误' : 'No errors' }}
               </li>
             </ul>
@@ -858,11 +901,25 @@ async function gotoError(path: string) {
           
           <div v-show="activeTab === 'errors'" class="tab-content">
             <button @click="validateNow" class="validate-btn" v-if="mode === 'form'">{{ t.common.validate }}</button>
-            <div v-if="mode === 'json'" class="validation-status">
+            <button 
+              @click="handleAutoRepair" 
+              class="repair-btn" 
+              v-if="mode === 'json' && needsRepair"
+            >
+              🔧 {{ currentLocale === 'zh' ? '自动修复' : 'Auto Repair' }}
+            </button>
+            <div v-if="mode === 'json' && !needsRepair" class="validation-status">
               <span class="status-text">
                 {{ currentLocale === 'zh' 
                   ? `实时校验中... (${currentErrorCount} 个错误)` 
                   : `Real-time validation... (${currentErrorCount} errors)` }}
+              </span>
+            </div>
+            <div v-if="mode === 'json' && needsRepair" class="repair-status">
+              <span class="status-text">
+                ⚠️ {{ currentLocale === 'zh' 
+                  ? '检测到无效的 JSON 格式，请点击"自动修复"按钮' 
+                  : 'Invalid JSON format detected, click "Auto Repair"' }}
               </span>
             </div>
             <ul class="errors">
@@ -870,7 +927,7 @@ async function gotoError(path: string) {
                 <span class="path">{{ e.path || (currentLocale === 'zh' ? '(根)' : '(root)') }}</span>
                 <span class="msg">{{ e.message }}</span>
               </li>
-              <li v-if="displayedErrors.length === 0" class="no-errors">
+              <li v-if="displayedErrors.length === 0 && !needsRepair" class="no-errors">
                 {{ currentLocale === 'zh' ? '没有错误' : 'No errors' }}
               </li>
             </ul>
@@ -1169,6 +1226,10 @@ async function gotoError(path: string) {
 }
 .validate-btn { width: 100%; padding: 8px; margin-bottom: 12px; background: var(--brand, #3b82f6); color: white; border: none; border-radius: 4px; cursor: pointer; }
 .validate-btn:hover { background: var(--brand-hover, #2563eb); }
+.repair-btn { width: 100%; padding: 10px; margin-bottom: 12px; background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3); transition: all 0.3s; }
+.repair-btn:hover { background: linear-gradient(135deg, #7c3aed 0%, #9333ea 100%); box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4); transform: translateY(-1px); }
+.repair-status { padding: 10px 12px; margin-bottom: 12px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 6px; border: 1px solid #fbbf24; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+.repair-status .status-text { font-size: 13px; color: #92400e; font-weight: 500; }
 .validation-status { 
   padding: 10px 12px; 
   margin-bottom: 12px; 
