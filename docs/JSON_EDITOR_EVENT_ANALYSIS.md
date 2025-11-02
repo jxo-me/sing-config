@@ -35,6 +35,7 @@
    - **触发时机**: 文档变更后
    - **作用**: 实时检测 JSON 语法和 Schema 错误
    - **输出**: `editorErrors` 和 `editorValidationState`
+   - **优先级**: JSON 格式错误 > Schema 校验错误
 
 3. **自动补全** (`jsonSchemaAutocompleteExtension()`)
    - **触发时机**: 用户输入触发时
@@ -445,13 +446,15 @@ const { currentLocale } = useI18n();
    - 手动编辑时不会触发
    - 模式切换不会触发
 
-2. **实时校验**
-   - JSON 语法错误实时提示
-   - Schema 验证实时进行
+2. **实时校验** ⭐⭐⭐⭐⭐
+   - **JSON 格式校验优先**：先确保 JSON 语法有效
+   - Schema 验证次之：JSON 有效后才进行 Schema 校验
+   - 错误实时提示
 
-3. **智能修复**
-   - 检测无效 JSON
+3. **智能修复** ⭐⭐⭐⭐⭐
+   - 检测无效 JSON（`needsRepair` 计算属性）
    - 提供"自动修复"按钮
+   - **优先级修复**：致命错误（未闭合字符串/括号）优先处理
 
 4. **防抖机制**
    - 300ms 防抖避免频繁更新
@@ -475,11 +478,19 @@ const { currentLocale } = useI18n();
 
 ## 结论
 
-### 当前设计已很好
+### 当前设计已很好 ⭐⭐⭐⭐⭐
 
 **当前实现避免了最关键的冲突：手动编辑时不会自动格式化。**
 
-### 优化建议（可选）
+### 优先级策略 ✅
+
+**已实现：**
+- ✅ JSON 格式校验 > Schema 校验
+- ✅ 致命错误优先修复（未闭合字符串/括号）
+- ✅ 手动编辑不触发格式化
+- ✅ 实时错误提示
+
+**优化建议（可选）：**
 
 **优先级 1（推荐）:**
 - 保存并恢复格式化后的光标位置
@@ -498,6 +509,17 @@ const { currentLocale } = useI18n();
 
 - [CodeMirror 6 Events](https://codemirror.net/docs/ref/#view.EditorView.updateListener)
 - [svelte-jsoneditor - No auto-format](https://github.com/josdejong/svelte-jsoneditor)
+
+---
+
+## 更新日志
+
+### 2024-12-19 - v1.1
+
+**关键优化：**
+- ✅ 明确 JSON 格式校验 > Schema 校验的优先级
+- ✅ 实时校验和智能修复的优先级策略
+- ✅ 优先级修复：致命错误优先
 
 **文档生成时间**: 2024-12-19
 
