@@ -356,25 +356,26 @@ function getDefaultValueByType(type: string): string {
 function createPropertyApply(key: string, propSchema?: JsonSchema, rootSchema?: JsonSchema): (view: any, _completion: any, from: number, to: number) => void {
   return (view, _completion, from, to) => {
     const state = view.state;
-    const doc = state.doc;
-    const line = doc.lineAt(from);
-    const beforeCursor = line.text.substring(0, from - line.from);
     
-    // 检查是否已有引号
-    const hasQuote = beforeCursor.endsWith('"') || beforeCursor.endsWith("'");
-    // 检查是否在字符串中间（已有起始引号）
-    const quoteMatches = beforeCursor.match(/["']/g);
-    const isInString = quoteMatches && quoteMatches.length % 2 !== 0;
+    // 使用语法树判断是否在字符串内（更准确）
+    const tree = syntaxTree(state);
+    const node = tree.resolve(from, 1);
+    let isInString = false;
+    let current: ReturnType<typeof tree.resolve> = node;
     
-    let insertText: string;
-    
-    if (hasQuote || isInString) {
-      // 如果已有引号，只插入键名（不包含引号）
-      insertText = key;
-    } else {
-      // 如果没有引号，插入带引号的键名
-      insertText = `"${key}"`;
+    // 向上遍历语法树，检查是否在字符串节点内
+    while (current) {
+      if (current.name === 'String' || current.name === 'JsonString') {
+        isInString = true;
+        break;
+      }
+      const parent = current.parent;
+      if (!parent) break;
+      current = parent;
     }
+    
+    // 如果已在字符串内，只插入键名
+    let insertText: string = isInString ? key : `"${key}"`;
     
     // 如果提供了 schema，自动插入默认值
     if (propSchema && rootSchema) {
@@ -397,23 +398,32 @@ function createPropertyApply(key: string, propSchema?: JsonSchema, rootSchema?: 
 function createValueApply(valueStr: string, isString: boolean): (view: any, _completion: any, from: number, to: number) => void {
   return (view, _completion, from, to) => {
     const state = view.state;
-    const doc = state.doc;
-    const line = doc.lineAt(from);
-    const beforeCursor = line.text.substring(0, from - line.from);
     
     let insertText: string;
     
     if (isString) {
-      // 字符串值：检查是否已有引号
-      const hasQuote = beforeCursor.endsWith('"') || beforeCursor.endsWith("'");
-      const quoteMatches = beforeCursor.match(/["']/g);
-      const isInString = quoteMatches && quoteMatches.length % 2 !== 0;
+      // 字符串值：使用语法树判断是否已在字符串内
+      const tree = syntaxTree(state);
+      const node = tree.resolve(from, 1);
+      let isInString = false;
+      let current: ReturnType<typeof tree.resolve> = node;
       
-      if (hasQuote || isInString) {
-        // 如果已有引号，移除 valueStr 中的引号（JSON.stringify 会包含引号）
+      // 向上遍历语法树，检查是否在字符串节点内
+      while (current) {
+        if (current.name === 'String' || current.name === 'JsonString') {
+          isInString = true;
+          break;
+        }
+        const parent = current.parent;
+        if (!parent) break;
+        current = parent;
+      }
+      
+      if (isInString) {
+        // 如果已在字符串内，移除 valueStr 中的引号
         insertText = valueStr.replace(/^"|"$/g, '');
       } else {
-        // 如果没有引号，直接使用 JSON.stringify 的结果（已包含引号）
+        // 如果不在字符串内，直接使用 JSON.stringify 的结果（已包含引号）
         insertText = valueStr;
       }
     } else {
