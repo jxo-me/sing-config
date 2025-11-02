@@ -780,10 +780,41 @@ function isPropertyNameContext(context: CompletionContext): boolean {
   }
   
   // 检查是否在对象内部，准备输入属性名
-  if (node.name === 'JsonObject' || node.parent?.name === 'JsonObject') {
-    const before = context.state.sliceDoc(Math.max(0, pos - 20), pos);
-    // 检查是否在 { 之后或 , 之后
-    if (before.match(/[{,]\s*"?$/)) {
+  // 向上查找 JsonObject 节点
+  let searchNode: ReturnType<typeof tree.resolve> = node;
+  while (searchNode) {
+    if (searchNode.name === 'JsonObject') {
+      const before = context.state.sliceDoc(Math.max(0, pos - 20), pos);
+      // 检查是否在 { 之后或 , 之后
+      if (before.match(/[{,]\s*"?$/)) {
+        console.log('[Autocomplete] 在 JsonObject 内，文本匹配成功');
+        return true;
+      }
+      break;
+    }
+    if (!searchNode.parent) break;
+    searchNode = searchNode.parent;
+  }
+  
+  // 如果节点是 JsonText（无效 JSON），也尝试文本匹配
+  if (node.name === 'JsonText') {
+    console.log('[Autocomplete] 节点是 JsonText，进行文本匹配检查');
+    const before = context.state.sliceDoc(Math.max(0, pos - 30), pos);
+    const after = context.state.sliceDoc(pos, Math.min(context.state.doc.length, pos + 10));
+    console.log('[Autocomplete] JsonText 文本检查:', { before, after });
+    
+    // 检查是否在 { 之后或 , 之后，准备输入属性名
+    // 改进正则：匹配 { 或 , 后面，可能是空白、引号，或者直接是字符（属性名）
+    // 但不能包含 : (冒号，说明已经是值了) 或 } (右括号，说明对象结束)
+    // 匹配情况：{ 或 {  或 {" 或 {xxx (但 xxx 不能包含 :)
+    if (before.match(/[{,]\s*"?[^:}]*$/)) {
+      console.log('[Autocomplete] JsonText 文本匹配：在对象开始或逗号后');
+      return true;
+    }
+    
+    // 额外检查：如果光标正好在 { 后面（可能没有空格）
+    if (before.endsWith('{') || before.match(/[{,]\s*$/)) {
+      console.log('[Autocomplete] JsonText 额外匹配：光标在 { 或 , 后面');
       return true;
     }
   }
