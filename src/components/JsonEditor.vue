@@ -19,6 +19,10 @@ import { settings, getAutocompleteSchemaPath } from '../stores/settings';
 
 const { currentLocale } = useI18n();
 
+console.log('[JsonEditor] 组件初始化开始');
+console.log('[JsonEditor] settings 对象:', settings);
+console.log('[JsonEditor] enableAutocomplete 值:', settings?.enableAutocomplete);
+
 const props = defineProps<{ 
   modelValue: string;
 }>();
@@ -56,6 +60,13 @@ watch(currentLocale, () => {
  * 构建编辑器扩展（支持动态配置）
  */
 async function buildExtensions(): Promise<Extension[]> {
+  console.log('[JsonEditor] buildExtensions 被调用');
+  console.log('[JsonEditor] 当前设置:', {
+    enableAutocomplete: settings.enableAutocomplete,
+    autocompleteActivateOnTyping: settings.autocompleteActivateOnTyping,
+    autocompleteDelay: settings.autocompleteDelay,
+  });
+  
   const extensions: Extension[] = [];
   
   // 基础 UI 功能
@@ -188,10 +199,18 @@ async function buildExtensions(): Promise<Extension[]> {
 }
 
 onMounted(async () => {
-  if (!container.value) return;
+  console.log('[JsonEditor] onMounted 被调用');
+  console.log('[JsonEditor] container.value:', !!container.value);
   
+  if (!container.value) {
+    console.error('[JsonEditor] container.value 为空，无法创建编辑器');
+    return;
+  }
+  
+  console.log('[JsonEditor] 开始构建扩展...');
   // 构建扩展
   const allExtensions = await buildExtensions();
+  console.log('[JsonEditor] 扩展构建完成，数量:', allExtensions.length);
   console.log('[JsonEditor] 所有扩展已构建，总数:', allExtensions.length);
   console.log('[JsonEditor] 扩展列表:', allExtensions.map((ext: any) => ext?.constructor?.name || typeof ext).slice(0, 10));
   

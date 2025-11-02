@@ -187,6 +187,10 @@ watch(
 // 初始化：加载保存的设置
 loadSettings();
 
+console.log('[Settings] 设置模块已加载');
+console.log('[Settings] enableAutocomplete 默认值:', settings.enableAutocomplete);
+console.log('[Settings] 当前 enableAutocomplete 值:', settings.enableAutocomplete);
+
 // 重置所有设置为默认值
 export function resetSettings() {
   Object.assign(settings, defaultSettings);
