@@ -4,7 +4,7 @@ import { EditorView } from '@codemirror/view';
 import type { ViewUpdate } from '@codemirror/view';
 import { ref } from 'vue';
 import { jsonSchemaLinter, stateExtensions, handleRefresh, type JSONValidationOptions } from 'codemirror-json-schema';
-import { loadSchema } from './schema';
+import { loadSchema, setSchemaFilePath } from './schema';
 import type { JsonSchema } from './schema';
 
 // 导出的编辑器错误状态 - 供右侧面板使用
@@ -395,12 +395,21 @@ export function localizeErrorMessage(message: string): string {
 
 let cachedSchema: JsonSchema | null = null;
 let schemaLoadPromise: Promise<JsonSchema> | null = null;
+let lastSchemaPath: string | null = null;
 
 // 初始化 schema
-async function getSchema(): Promise<JsonSchema> {
+async function getSchema(schemaPath?: string): Promise<JsonSchema> {
+  // 如果路径变化，清除缓存并重新加载
+  if (schemaPath && schemaPath !== lastSchemaPath) {
+    cachedSchema = null;
+    schemaLoadPromise = null;
+    lastSchemaPath = schemaPath;
+    setSchemaFilePath(schemaPath);
+  }
+  
   if (cachedSchema) return cachedSchema;
   if (!schemaLoadPromise) {
-    schemaLoadPromise = loadSchema();
+    schemaLoadPromise = loadSchema(schemaPath);
     cachedSchema = await schemaLoadPromise;
     schemaLoadPromise = null;
   } else {
@@ -783,6 +792,7 @@ function createWrappedLinter(options: JSONValidationOptions) {
 export interface SchemaValidationConfig {
   enabled: boolean; // 是否启用 Schema 校验
   delay: number; // 延迟时间（毫秒）
+  schemaPath?: string; // Schema 文件路径（可选）
 }
 
 /**
@@ -791,6 +801,7 @@ export interface SchemaValidationConfig {
 const defaultSchemaConfig: SchemaValidationConfig = {
   enabled: false,
   delay: 800,
+  schemaPath: undefined,
 };
 
 // 创建 JSON Schema 扩展（使用 codemirror-json-schema 官方包）
@@ -828,6 +839,7 @@ export async function createJsonSchemaExtension(config: SchemaValidationConfig =
   if (lastConfig && 
       lastConfig.enabled === config.enabled &&
       lastConfig.delay === config.delay &&
+      lastConfig.schemaPath === config.schemaPath &&
       schemaExtensionPromise) {
     return schemaExtensionPromise;
   }
@@ -837,7 +849,7 @@ export async function createJsonSchemaExtension(config: SchemaValidationConfig =
   
   // 创建新的 Promise
   schemaExtensionPromise = (async () => {
-    const schema = await getSchema();
+    const schema = await getSchema(config.schemaPath);
     const options: JSONValidationOptions = {
       formatError: createFormatError(),
     };
@@ -877,4 +889,7 @@ export function jsonSchemaSync(): Extension[] {
 export function clearSchemaExtensionCache() {
   schemaExtensionPromise = null;
   lastConfig = null;
+  cachedSchema = null;
+  schemaLoadPromise = null;
+  lastSchemaPath = null;
 }

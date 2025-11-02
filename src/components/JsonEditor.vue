@@ -167,6 +167,7 @@ async function buildExtensions(): Promise<Extension[]> {
     const schemaExt = await createJsonSchemaExtension({
       enabled: true,
       delay: settings.schemaValidationDelay,
+      schemaPath: settings.schemaFilePath,
     });
     extensions.push(...schemaExt);
   }
@@ -264,6 +265,7 @@ watch(
     autocompleteDelay: settings.autocompleteDelay,
     enableSchemaValidation: settings.enableSchemaValidation,
     schemaValidationDelay: settings.schemaValidationDelay,
+    schemaFilePath: settings.schemaFilePath,
     autoCloseBrackets: settings.autoCloseBrackets,
     autoHighlightSelectionMatches: settings.autoHighlightSelectionMatches,
     enableLineNumbers: settings.enableLineNumbers,

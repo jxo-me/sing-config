@@ -50,6 +50,7 @@ const labelFor = (key: keyof EditorSettings) => {
       indentSize: '缩进大小（空格）',
       enableSchemaValidation: 'Schema 校验',
       schemaValidationDelay: '校验延迟（毫秒）',
+      schemaFilePath: 'Schema 文件路径',
       enableFormatDetection: '格式检测',
       showAutoRepairButton: '显示自动修复按钮',
       enableAutocomplete: '启用自动补全',
@@ -80,6 +81,7 @@ const labelFor = (key: keyof EditorSettings) => {
       indentSize: 'Indent Size (spaces)',
       enableSchemaValidation: 'Schema Validation',
       schemaValidationDelay: 'Validation Delay (ms)',
+      schemaFilePath: 'Schema File Path',
       enableFormatDetection: 'Format Detection',
       showAutoRepairButton: 'Show Auto Repair Button',
       enableAutocomplete: 'Enable Autocomplete',
@@ -116,6 +118,7 @@ const descriptionFor = (key: keyof EditorSettings) => {
       indentSize: '每个缩进级别的空格数',
       enableSchemaValidation: '启用 JSON Schema 实时校验',
       schemaValidationDelay: '输入后延迟多久开始校验',
+      schemaFilePath: 'Schema 文件的 URL 或本地路径',
       enableFormatDetection: '检测无效的 JSON 格式',
       showAutoRepairButton: '在检测到格式错误时显示修复按钮',
       enableAutocomplete: '启用 JSON Schema 驱动的自动补全',
@@ -146,6 +149,7 @@ const descriptionFor = (key: keyof EditorSettings) => {
       indentSize: 'Number of spaces per indent level',
       enableSchemaValidation: 'Enable real-time JSON Schema validation',
       schemaValidationDelay: 'Delay before validation starts after typing',
+      schemaFilePath: 'URL or local path to Schema file',
       enableFormatDetection: 'Detect invalid JSON format',
       showAutoRepairButton: 'Show repair button when format errors detected',
       enableAutocomplete: 'Enable JSON Schema-driven autocomplete',
@@ -303,6 +307,16 @@ defineExpose({
                   min="0"
                   max="3000"
                   class="indent-input"
+                />
+              </label>
+              
+              <label v-if="tempSettings.enableSchemaValidation" class="setting-item">
+                <span class="setting-name">{{ labelFor('schemaFilePath') }}</span>
+                <input
+                  type="text"
+                  v-model="tempSettings.schemaFilePath"
+                  class="font-input"
+                  placeholder="/schema.json"
                 />
               </label>
               

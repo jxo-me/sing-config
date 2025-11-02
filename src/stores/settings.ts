@@ -18,6 +18,7 @@ export interface EditorSettings {
   // JSON Schema 校验
   enableSchemaValidation: boolean; // 启用 Schema 验证
   schemaValidationDelay: number; // Schema 校验延迟（毫秒）
+  schemaFilePath: string; // Schema 文件路径（URL 或本地路径）
   
   // 格式检测和修复
   enableFormatDetection: boolean; // 启用 JSON 格式检测（isValidJson）
@@ -71,6 +72,7 @@ export const defaultSettings: EditorSettings = {
   autocompleteDelay: 0,
   enableSchemaValidation: false,
   schemaValidationDelay: 800,
+  schemaFilePath: '/schema.json',
   enableFormatDetection: false,
   showAutoRepairButton: false,
   autoFormatOnLoad: false,
