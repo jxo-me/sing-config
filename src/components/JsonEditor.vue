@@ -175,9 +175,9 @@ async function buildExtensions(): Promise<Extension[]> {
       key: 'Tab',
       run: tabAutocompleteCommand,
       // 可选：添加 shift 修饰键的处理
-      shift: (view: any) => {
+      shift: () => {
         // Shift+Tab 可以保留为取消缩进（如果需要）
-        console.log('[JsonEditor] Shift+Tab 按下');
+        console.log('[JsonEditor] Shift+Tab 按下，使用默认取消缩进行为');
         return false; // 使用默认行为（取消缩进）
       },
     },
