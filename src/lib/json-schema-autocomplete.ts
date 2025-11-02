@@ -1,6 +1,7 @@
-import { CompletionContext, CompletionResult, Completion, autocompletion } from '@codemirror/autocomplete';
+import { CompletionContext, CompletionResult, Completion, autocompletion, startCompletion } from '@codemirror/autocomplete';
 import { syntaxTree } from '@codemirror/language';
 import { Extension } from '@codemirror/state';
+import { keymap } from '@codemirror/view';
 import { loadSchema, setSchemaFilePath } from './schema';
 import { getCurrentLocale } from './codemirror-json-schema';
 
@@ -1312,7 +1313,57 @@ export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig
     extensionType: autocompleteExtension.constructor.name,
   });
   
-  return [autocompleteExtension];
+  // 创建回车键触发补全的命令
+  const enterAutocompleteCommand = (view: any) => {
+    const state = view.state;
+    const pos = state.selection.main.head;
+    
+    // 创建临时的 CompletionContext 来重用现有的上下文判断逻辑
+    const tempContext: CompletionContext = {
+      state,
+      pos,
+      explicit: true, // 标记为显式触发
+      matchBefore: '',
+    } as CompletionContext;
+    
+    // 使用已有的上下文判断函数
+    const isProperty = isPropertyNameContext(tempContext);
+    const isValue = isValueContext(tempContext);
+    
+    console.log('[Autocomplete] Enter 键按下，检查是否应该触发补全:', {
+      pos,
+      isProperty,
+      isValue,
+      '应该触发': isProperty || isValue,
+    });
+    
+    // 如果满足属性名或属性值的上下文，触发补全
+    if (isProperty || isValue) {
+      console.log('[Autocomplete] Enter 键触发补全:', {
+        isProperty,
+        isValue,
+        '触发原因': isProperty ? '属性名位置' : '属性值位置',
+      });
+      
+      // 使用 CodeMirror 的 startCompletion 命令触发补全
+      // 这会创建一个新的 CompletionContext 并调用 override 函数
+      return startCompletion(view);
+    }
+    
+    console.log('[Autocomplete] Enter 键：不满足补全条件，执行默认行为（插入换行）');
+    // 返回 false 表示不处理，让默认的 Enter 行为执行（插入换行）
+    return false;
+  };
+  
+  // 创建 keymap 扩展，绑定 Enter 键
+  const enterKeymapExtension = keymap.of([
+    {
+      key: 'Enter',
+      run: enterAutocompleteCommand,
+    },
+  ]);
+  
+  return [autocompleteExtension, enterKeymapExtension];
 }
 
 /**
