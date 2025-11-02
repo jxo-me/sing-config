@@ -361,23 +361,22 @@ function getDefaultValue(schema: JsonSchema, rootSchema: JsonSchema): string {
   return 'null';
 }
 
-// 根据类型获取默认值
+// 根据类型获取默认值（测试用例 8）
 function getDefaultValueByType(type: string): string {
   switch (type) {
     case 'string':
-      return '""'; // 空字符串
+      return '""'; // 空字符串（测试用例 8：字符串类型：插入 ""）
     case 'number':
-      return '0'; // 数字 0
     case 'integer':
-      return '0'; // 整数 0
+      return '0'; // 数字 0（测试用例 8：数字类型：插入 0）
     case 'boolean':
-      return 'false'; // 布尔值 false
+      return 'false'; // 布尔值 false（测试用例 8：布尔类型：插入 false）
     case 'null':
-      return 'null'; // null
+      return 'null'; // null（测试用例 8：null 类型）
     case 'array':
-      return '[]'; // 空数组
+      return '[]'; // 空数组（测试用例 8：数组类型：插入 []）
     case 'object':
-      return '{}'; // 空对象
+      return '{}'; // 空对象（测试用例 8：对象类型：插入 {}）
     default:
       return 'null'; // 未知类型默认 null
   }
@@ -505,20 +504,30 @@ function createValueApply(valueStr: string, isString: boolean): (view: any, _com
       }
       
       if (isInString) {
-        // 如果已在字符串内，移除 valueStr 中的引号
+        // 测试用例 9：智能引号处理 - 已在字符串内，移除 valueStr 中的引号（避免重复）
         insertText = valueStr.replace(/^"|"$/g, '');
         // 光标定位到值后面（已在字符串内，不需要定位到引号中间）
         cursorPosition = from + insertText.length;
+        console.log('[Autocomplete] 值插入：已在字符串内，移除引号避免重复:', {
+          original: valueStr,
+          insertText,
+          isInString,
+        });
       } else {
         // 如果不在字符串内，直接使用 JSON.stringify 的结果（已包含引号）
         insertText = valueStr;
         // 如果是空字符串 ""，光标定位到引号中间
-        // 如果是其他字符串值（如枚举），光标也定位到引号中间，方便编辑
+        // 如果是其他字符串值（如枚举），光标也定位到引号中间，方便编辑（测试用例 5）
         if (insertText === '""' || (insertText.startsWith('"') && insertText.endsWith('"') && insertText.length > 2)) {
           cursorPosition = from + insertText.length - 1; // 在最后一个引号前面
         } else {
           cursorPosition = from + insertText.length;
         }
+        console.log('[Autocomplete] 值插入：不在字符串内，保留引号:', {
+          insertText,
+          cursorPosition,
+          isInString: false,
+        });
       }
     } else {
       // 非字符串值：直接插入（如 true, false, null, 数字）
@@ -751,7 +760,7 @@ function getValueCompletions(schema: JsonSchema, _context: CompletionContext): C
   const completions: Completion[] = [];
   const locale = getCurrentLocale();
   
-  // 枚举值
+  // 枚举值（优先显示）
   if (schema.enum && Array.isArray(schema.enum)) {
     for (const enumValue of schema.enum) {
       const valueStr = typeof enumValue === 'string' ? JSON.stringify(enumValue) : String(enumValue);
@@ -759,6 +768,7 @@ function getValueCompletions(schema: JsonSchema, _context: CompletionContext): C
       completions.push({
         label: valueStr,
         type: 'value',
+        detail: locale === 'zh' ? `枚举值 (${completions.length + 1}/${schema.enum.length})` : `enum (${completions.length + 1}/${schema.enum.length})`,
         // 自定义应用逻辑：智能处理引号
         apply: createValueApply(valueStr, isString),
       });
@@ -779,15 +789,17 @@ function getValueCompletions(schema: JsonSchema, _context: CompletionContext): C
   }
   
   // 布尔值
-  if (schema.type === 'boolean') {
+  if (schema.type === 'boolean' || (Array.isArray(schema.type) && schema.type.includes('boolean'))) {
     completions.push({ 
       label: 'true', 
       type: 'value',
+      detail: locale === 'zh' ? '布尔值' : 'boolean',
       apply: createValueApply('true', false),
     });
     completions.push({ 
       label: 'false', 
       type: 'value',
+      detail: locale === 'zh' ? '布尔值' : 'boolean',
       apply: createValueApply('false', false),
     });
   }
@@ -797,7 +809,46 @@ function getValueCompletions(schema: JsonSchema, _context: CompletionContext): C
     completions.push({ 
       label: 'null', 
       type: 'value',
+      detail: locale === 'zh' ? '空值' : 'null',
       apply: createValueApply('null', false),
+    });
+  }
+  
+  // 对象类型：提供对象结构补全（测试用例 4）
+  if (schema.type === 'object' || (Array.isArray(schema.type) && schema.type.includes('object'))) {
+    if (schema.properties && typeof schema.properties === 'object') {
+      const props = schema.properties as Record<string, JsonSchema>;
+      const propCount = Object.keys(props).length;
+      
+      // 创建一个对象补全项，可以选择展开为完整对象或只插入 {}
+      completions.unshift({
+        label: '{}',
+        type: 'value',
+        detail: locale === 'zh' ? `对象 (${propCount} 个属性)` : `object (${propCount} properties)`,
+        apply: (view, _completion, from, to) => {
+          // 插入空对象
+          view.dispatch({
+            changes: { from, to, insert: '{}' },
+            selection: { anchor: from + 1 }, // 光标在 {} 中间
+          });
+        },
+      });
+    }
+  }
+  
+  // 数组类型：提供数组结构补全
+  if (schema.type === 'array' || (Array.isArray(schema.type) && schema.type.includes('array'))) {
+    completions.unshift({
+      label: '[]',
+      type: 'value',
+      detail: locale === 'zh' ? '数组' : 'array',
+      apply: (view, _completion, from, to) => {
+        // 插入空数组
+        view.dispatch({
+          changes: { from, to, insert: '[]' },
+          selection: { anchor: from + 1 }, // 光标在 [] 中间
+        });
+      },
     });
   }
   
@@ -945,8 +996,15 @@ function isPropertyNameContext(context: CompletionContext): boolean {
     }
     
     // 方法3：额外检查：如果光标正好在 { 或 , 后面（可能没有空格）
+    // 测试用例 1, 2, 3：确保在这些情况下都能触发补全
     if (before.endsWith('{') || before.match(/[{,]\s*$/)) {
-      console.log('[Autocomplete] JsonText 额外匹配：光标在 { 或 , 后面');
+      console.log('[Autocomplete] JsonText 额外匹配：光标在 { 或 , 后面（测试用例 1, 2）');
+      return true;
+    }
+    
+    // 方法4：检查是否在引号内开始输入（测试用例 3）
+    if (before.match(/["']$/)) {
+      console.log('[Autocomplete] JsonText 额外匹配：在引号内开始（测试用例 3）');
       return true;
     }
   }
@@ -997,8 +1055,19 @@ function isValueContext(context: CompletionContext): boolean {
   }
   
   // 检查是否在对象属性值位置（冒号后，使用语法树判断）
+  // 测试用例 4, 5, 6, 7：确保在冒号后能触发值补全
   const before = context.state.sliceDoc(Math.max(0, pos - 30), pos);
-  if (before.match(/:\s*$/)) {
+  const after = context.state.sliceDoc(pos, Math.min(context.state.doc.length, pos + 10));
+  
+  // 匹配冒号后的情况：: 或 :  或 :" 等
+  if (before.match(/:\s*"?\s*$/)) {
+    console.log('[Autocomplete] 文本匹配：在冒号后（测试用例 4, 5, 6, 7）');
+    return true;
+  }
+  
+  // 测试用例 4：在冒号后输入 { 也应该触发对象补全
+  if (after.startsWith('{') && before.match(/:\s*$/)) {
+    console.log('[Autocomplete] 文本匹配：在冒号后输入 {，触发对象补全（测试用例 4）');
     return true;
   }
   
@@ -1024,6 +1093,7 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
     return null;
   }
   
+  // 测试用例 10：嵌套对象补全 - 获取当前位置的 JSON 路径
   const path = getJsonPath(context.state, context.pos);
   let currentSchema = resolveSchemaPath(cachedSchema, path, cachedSchema);
   
@@ -1038,30 +1108,50 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
   const isValue = isValueContext(context);
   
   console.log('[Autocomplete] 上下文判断:', {
-    jsonPath: path,
+    jsonPath: path, // 测试用例 10：嵌套路径，如 ["dns"]
     isProperty,
     isValue,
     hasCurrentSchema: !!currentSchema,
+    pathLength: path.length,
+    '路径详情': path.length > 0 ? `嵌套深度 ${path.length}` : '根对象',
   });
   
   if (isProperty) {
-    // 属性名补全
-    // 需要找到父级 schema
+    // 属性名补全（测试用例 10：嵌套对象补全）
+    // 需要找到父级 schema，用于确定当前对象有哪些可用属性
     let parentSchema: JsonSchema | null = null;
     
     if (path.length > 0) {
-      // 有路径，使用父级路径
+      // 测试用例 10：有嵌套路径，使用父级路径找到当前对象的 schema
+      // 例如：path = ["dns"]，则需要获取 dns 对象的 properties
       const parentPath = path.slice(0, -1);
-      parentSchema = parentPath.length > 0 
-        ? resolveSchemaPath(cachedSchema, parentPath, cachedSchema) 
-        : cachedSchema;
+      const currentPathSchema = resolveSchemaPath(cachedSchema, parentPath, cachedSchema);
+      
+      // 获取当前对象的属性 schema（如果当前路径指向一个对象）
+      const currentObjectSchema = resolveSchemaPath(cachedSchema, path, cachedSchema);
+      
+      // 如果当前路径指向一个对象，使用该对象的 properties
+      // 否则使用父级 schema
+      if (currentObjectSchema && 
+          (currentObjectSchema.type === 'object' || 
+           (Array.isArray(currentObjectSchema.type) && currentObjectSchema.type.includes('object')))) {
+        parentSchema = currentObjectSchema;
+        console.log('[Autocomplete] 测试用例 10：在嵌套对象内，使用当前对象的 Schema');
+      } else {
+        parentSchema = currentPathSchema || cachedSchema;
+        console.log('[Autocomplete] 测试用例 10：使用父级路径的 Schema');
+      }
     } else {
       // 路径为空，直接使用根 schema（在对象开始位置）
       parentSchema = cachedSchema;
       console.log('[Autocomplete] 路径为空，属性名补全使用根 Schema');
     }
     
-    console.log('[Autocomplete] 属性名补全，父级 Schema:', !!parentSchema);
+    console.log('[Autocomplete] 属性名补全，父级 Schema:', {
+      hasSchema: !!parentSchema,
+      pathLength: path.length,
+      '上下文': path.length > 0 ? '嵌套对象' : '根对象',
+    });
     
     if (parentSchema) {
       const completions = getPropertyCompletions(parentSchema, context, cachedSchema);
