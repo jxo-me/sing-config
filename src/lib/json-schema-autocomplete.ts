@@ -730,7 +730,7 @@ function isPropertyNameContext(context: CompletionContext): boolean {
   if (node.name === 'JsonObject' || node.parent?.name === 'JsonObject') {
     const before = context.state.sliceDoc(Math.max(0, pos - 20), pos);
     // 检查是否在 { 之后或 , 之后
-    if (before.match(/[{,]\s*$/)) {
+    if (before.match(/[{,]\s*"?$/)) {
       return true;
     }
   }
@@ -759,6 +759,12 @@ function isValueContext(context: CompletionContext): boolean {
     const parent = current.parent;
     if (!parent) break;
     current = parent;
+  }
+  
+  // 检查是否在对象属性值位置（冒号后，使用语法树判断）
+  const before = context.state.sliceDoc(Math.max(0, pos - 30), pos);
+  if (before.match(/:\s*$/)) {
+    return true;
   }
   
   return false;
@@ -835,6 +841,10 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
 // 导出自动补全扩展
 export function jsonSchemaAutocompleteExtension() {
   return autocompletion({
+    // 允许在任何字符输入时触发补全（类似 VSCode 的行为）
+    activateOnTyping: true,
+    // 延迟 0 毫秒，立即显示
+    activateOnTypingDelay: 0,
     override: [
       async (context: CompletionContext) => {
         return await jsonSchemaAutocomplete(context);
