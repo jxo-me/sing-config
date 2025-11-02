@@ -23,6 +23,7 @@ const categoryLabels = {
     title: '编辑器设置',
     description: '配置编辑器的自动化功能行为',
     applyOnChange: '更改后立即应用',
+    autocompleteSchemaFilePathHint: '留空则使用 Schema 校验的路径',
   },
   en: {
     formatting: 'Formatting',
@@ -38,6 +39,7 @@ const categoryLabels = {
     title: 'Editor Settings',
     description: 'Configure editor automation features',
     applyOnChange: 'Apply on change',
+    autocompleteSchemaFilePathHint: 'Leave empty to use Schema validation path',
   },
 };
 
@@ -56,6 +58,7 @@ const labelFor = (key: keyof EditorSettings) => {
       enableAutocomplete: '启用自动补全',
       autocompleteActivateOnTyping: '输入时自动触发',
       autocompleteDelay: '补全延迟（毫秒）',
+      autocompleteSchemaFilePath: '自动补全 Schema 文件路径',
       autoFormatOnLoad: '加载时格式化',
       autoFormatOnSave: '保存时格式化',
       autoFormatOnModeSwitch: '切换模式时格式化',
@@ -87,6 +90,7 @@ const labelFor = (key: keyof EditorSettings) => {
       enableAutocomplete: 'Enable Autocomplete',
       autocompleteActivateOnTyping: 'Activate on Typing',
       autocompleteDelay: 'Autocomplete Delay (ms)',
+      autocompleteSchemaFilePath: 'Autocomplete Schema File Path',
       autoFormatOnLoad: 'Format on Load',
       autoFormatOnSave: 'Format on Save',
       autoFormatOnModeSwitch: 'Format on Mode Switch',
@@ -124,6 +128,7 @@ const descriptionFor = (key: keyof EditorSettings) => {
       enableAutocomplete: '启用 JSON Schema 驱动的自动补全',
       autocompleteActivateOnTyping: '输入任意字符时自动弹出补全',
       autocompleteDelay: '自动补全弹出的延迟时间',
+      autocompleteSchemaFilePath: '自动补全使用的 Schema 文件路径（留空则使用 Schema 校验的路径）',
       autoFormatOnLoad: '打开文件时自动格式化',
       autoFormatOnSave: '保存文件时自动格式化',
       autoFormatOnModeSwitch: '在 JSON 和表单模式间切换时格式化',
@@ -155,6 +160,7 @@ const descriptionFor = (key: keyof EditorSettings) => {
       enableAutocomplete: 'Enable JSON Schema-driven autocomplete',
       autocompleteActivateOnTyping: 'Automatically show autocomplete on typing',
       autocompleteDelay: 'Delay before autocomplete appears',
+      autocompleteSchemaFilePath: 'Schema file path for autocomplete (leave empty to use Schema validation path)',
       autoFormatOnLoad: 'Format file when loading',
       autoFormatOnSave: 'Format file when saving',
       autoFormatOnModeSwitch: 'Format when switching between JSON and form modes',
@@ -378,6 +384,23 @@ defineExpose({
                   max="1000"
                   class="indent-input"
                 />
+              </label>
+              
+              <label v-if="tempSettings.enableAutocomplete" class="setting-item">
+                <div class="setting-label">
+                  <div class="setting-name">{{ labelFor('autocompleteSchemaFilePath') }}</div>
+                  <div class="setting-desc">{{ descriptionFor('autocompleteSchemaFilePath') }}</div>
+                </div>
+                <input
+                  type="text"
+                  v-model="tempSettings.autocompleteSchemaFilePath"
+                  placeholder="/schema.json"
+                  class="font-input"
+                  style="width: 100%; margin-top: 8px;"
+                />
+                <div class="setting-hint" style="margin-top: 4px; font-size: 0.85em; color: #666;">
+                  {{ t.autocompleteSchemaFilePathHint }}
+                </div>
               </label>
             </div>
           </details>

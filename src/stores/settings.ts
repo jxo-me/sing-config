@@ -14,6 +14,7 @@ export interface EditorSettings {
   enableAutocomplete: boolean; // 启用自动补全
   autocompleteActivateOnTyping: boolean; // 自动补全：输入时自动触发
   autocompleteDelay: number; // 自动补全延迟（毫秒）
+  autocompleteSchemaFilePath: string; // 自动补全 Schema 文件路径（默认使用 schemaFilePath）
   
   // JSON Schema 校验
   enableSchemaValidation: boolean; // 启用 Schema 验证
@@ -70,6 +71,7 @@ export const defaultSettings: EditorSettings = {
   enableAutocomplete: true,
   autocompleteActivateOnTyping: true,
   autocompleteDelay: 0,
+  autocompleteSchemaFilePath: '', // 空字符串表示使用 schemaFilePath
   enableSchemaValidation: false,
   schemaValidationDelay: 800,
   schemaFilePath: '/schema.json',
@@ -202,5 +204,13 @@ export function getSetting<K extends keyof EditorSettings>(
   key: K
 ): EditorSettings[K] {
   return settings[key];
+}
+
+/**
+ * 获取自动补全使用的 Schema 文件路径
+ * 如果 autocompleteSchemaFilePath 为空，则使用 schemaFilePath
+ */
+export function getAutocompleteSchemaPath(): string {
+  return settings.autocompleteSchemaFilePath || settings.schemaFilePath;
 }
 

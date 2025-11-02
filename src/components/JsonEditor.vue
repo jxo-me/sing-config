@@ -15,7 +15,7 @@ import { createJsonSchemaAutocompleteExtension } from '../lib/json-schema-autoco
 import { createSyntaxHighlighting } from '../lib/editor-themes';
 import { createEditorTheme } from '../lib/editor-custom-theme';
 import { useI18n } from '../i18n';
-import { settings } from '../stores/settings';
+import { settings, getAutocompleteSchemaPath } from '../stores/settings';
 
 const { currentLocale } = useI18n();
 
@@ -83,13 +83,13 @@ async function buildExtensions(): Promise<Extension[]> {
     extensions.push(highlightSelectionMatches());
   }
   
-  // 自动补全（使用新的配置函数）
+  // 自动补全（使用新的配置函数，独立于 Schema 验证）
   if (settings.enableAutocomplete) {
     extensions.push(...createJsonSchemaAutocompleteExtension({
       enabled: true,
       activateOnTyping: settings.autocompleteActivateOnTyping,
       delay: settings.autocompleteDelay,
-      schemaPath: settings.schemaFilePath,
+      schemaPath: getAutocompleteSchemaPath(), // 使用独立的自动补全 Schema 路径
     }));
   }
   
@@ -264,6 +264,7 @@ watch(
     enableAutocomplete: settings.enableAutocomplete,
     autocompleteActivateOnTyping: settings.autocompleteActivateOnTyping,
     autocompleteDelay: settings.autocompleteDelay,
+    autocompleteSchemaFilePath: settings.autocompleteSchemaFilePath,
     enableSchemaValidation: settings.enableSchemaValidation,
     schemaValidationDelay: settings.schemaValidationDelay,
     schemaFilePath: settings.schemaFilePath,
