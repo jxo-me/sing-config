@@ -1057,9 +1057,10 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
           const betweenBraces = beforeCursor.substring(openBraceIndex + 1, closeBraceIndex).trim();
           // 如果 {} 之间是空的，则插入到 { 和 } 之间
           if (betweenBraces === '') {
-            // from 在 { 后面，to 在 } 前面 - 这样会替换 {} 之间的空白，插入内容
-            const from = lineStart + openBraceIndex + 1;
-            const to = lineStart + closeBraceIndex;
+            // from 在 { 后面，to 在 } 前面
+            // CodeMirror 的范围是 [from, to)，所以 to = closeBraceIndex 不会包含 } 本身
+            const from = lineStart + openBraceIndex + 1; // { 后面
+            const to = lineStart + closeBraceIndex;      // } 前面（不包含 }）
             
             console.log('[Autocomplete] 空对象 {} 情况，调整插入位置到内部:', { 
               from, 
