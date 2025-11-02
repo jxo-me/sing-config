@@ -424,11 +424,37 @@ function createPropertyApply(key: string, propSchema?: JsonSchema, rootSchema?: 
         if (defaultValue === '""') {
           // 字符串类型：光标定位到两个引号中间
           // insertText 现在是 `"$schema": ""`
-          // 光标应该在第二个引号前面（即在 "" 中间）
-          cursorPosition = from + insertText.length - 1; // 在最后一个引号前面
+          // 需要找到最后一个 "" 的中间位置
+          // 示例：`"$schema": ""`，索引：0123456789 012
+          //                            " $ s c h e m a " :   " "
+          // 最后两个引号在位置 11 和 12，光标应该在位置 12（第二个引号的位置）
+          // 但更准确的是：找到冒号后的第一个引号位置 + 1（在引号中间）
+          const colonIndex = insertText.indexOf(':');
+          if (colonIndex >= 0) {
+            // 找到冒号后的第一个引号（值的开始引号）
+            const valueStartQuote = insertText.indexOf('"', colonIndex + 1);
+            if (valueStartQuote >= 0) {
+              // 光标应该在第一个引号后面（即 "" 中间）
+              cursorPosition = from + valueStartQuote + 1;
+              console.log('[Autocomplete] 字符串默认值，计算光标位置:', {
+                insertText,
+                colonIndex,
+                valueStartQuote,
+                cursorPosition,
+                '期望位置': '在 "" 中间（第一个引号后面）',
+              });
+            } else {
+              // 降级：使用最后一个引号前面
+              cursorPosition = from + insertText.length - 1;
+            }
+          } else {
+            // 降级：使用最后一个引号前面
+            cursorPosition = from + insertText.length - 1;
+          }
         } else if (defaultValue.startsWith('"') && defaultValue.endsWith('"') && defaultValue.length > 2) {
           // 带引号的字符串值（如枚举值），光标定位到引号中间
-          cursorPosition = from + insertText.length - 1; // 在最后一个引号前面
+          const lastQuoteIndex = insertText.lastIndexOf('"');
+          cursorPosition = from + lastQuoteIndex; // 在最后一个引号前面
         } else {
           // 其他类型（数字、布尔、null），光标定位到值后面
           cursorPosition = from + insertText.length;
