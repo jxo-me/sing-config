@@ -1499,82 +1499,14 @@ export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig
     extensionType: autocompleteExtension.constructor.name,
   });
   
-  // 创建回车键触发补全的命令
-  const enterAutocompleteCommand = (view: any) => {
-    const state = view.state;
-    const pos = state.selection.main.head;
-    const line = state.doc.lineAt(pos);
-    const beforeCursor = line.text.substring(0, pos - line.from);
-    
-    console.log('[Autocomplete] Enter 键按下，开始检查:', {
-      pos,
-      lineNumber: line.number,
-      beforeCursor,
-      '文档长度': state.doc.length,
-      '启用补全': config.enabled,
-    });
-    
-    // 创建临时的 CompletionContext 来重用现有的上下文判断逻辑
-    // 使用类型断言来创建最小化的 CompletionContext
-    const tempContext = {
-      state,
-      pos,
-      explicit: true, // 标记为显式触发
-      matchBefore: '',
-      tokenBefore: () => null,
-      aborted: false,
-      addEventListener: () => () => {},
-    } as unknown as CompletionContext;
-    
-    // 使用已有的上下文判断函数
-    const isProperty = isPropertyNameContext(tempContext);
-    const isValue = isValueContext(tempContext);
-    
-    console.log('[Autocomplete] Enter 键上下文判断结果:', {
-      pos,
-      beforeCursor,
-      isProperty,
-      isValue,
-      '应该触发': isProperty || isValue,
-    });
-    
-    // 如果满足属性名或属性值的上下文，触发补全
-    if (isProperty || isValue) {
-      console.log('[Autocomplete] Enter 键触发补全:', {
-        isProperty,
-        isValue,
-        '触发原因': isProperty ? '属性名位置' : '属性值位置',
-      });
-      
-      try {
-        // 使用 CodeMirror 的 startCompletion 命令触发补全
-        // 这会创建一个新的 CompletionContext 并调用 override 函数
-        const result = startCompletion(view);
-        console.log('[Autocomplete] Enter 键 startCompletion 结果:', {
-          result,
-          '是否成功': result !== false,
-        });
-        return result;
-      } catch (error) {
-        console.error('[Autocomplete] Enter 键触发补全失败:', error);
-        return false;
-      }
-    }
-    
-    console.log('[Autocomplete] Enter 键：不满足补全条件，执行默认行为（插入换行）');
-    // 返回 false 表示不处理，让默认的 Enter 行为执行（插入换行）
-    return false;
-  };
+  // 移除回车键补全功能，恢复回车键默认行为（插入换行）
+  console.log('[Autocomplete] 扩展创建完成，包含:', {
+    'autocompleteExtension': !!autocompleteExtension,
+    '扩展数量': 1,
+    '注意': 'Enter 键补全已移除，使用默认换行功能',
+  });
   
-  // 创建 keymap 扩展，绑定 Enter 键
-  const enterKeymapExtension = keymap.of([
-    {
-      key: 'Enter',
-      run: enterAutocompleteCommand,
-    },
-  ]);
-  
-  return [autocompleteExtension, enterKeymapExtension];
+  return [autocompleteExtension];
 }
 
 /**
