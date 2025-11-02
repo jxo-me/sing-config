@@ -1,7 +1,6 @@
-import { CompletionContext, CompletionResult, Completion, autocompletion, startCompletion } from '@codemirror/autocomplete';
+import { CompletionContext, CompletionResult, Completion, autocompletion } from '@codemirror/autocomplete';
 import { syntaxTree } from '@codemirror/language';
 import { Extension } from '@codemirror/state';
-import { keymap } from '@codemirror/view';
 import { loadSchema, setSchemaFilePath } from './schema';
 import { getCurrentLocale } from './codemirror-json-schema';
 
