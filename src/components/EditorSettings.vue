@@ -317,11 +317,14 @@ defineExpose({
               </label>
               
               <label v-if="tempSettings.enableSchemaValidation" class="setting-item">
-                <span class="setting-name">{{ labelFor('schemaFilePath') }}</span>
+                <div class="setting-label">
+                  <div class="setting-name">{{ labelFor('schemaFilePath') }}</div>
+                  <div class="setting-desc">{{ descriptionFor('schemaFilePath') }}</div>
+                </div>
                 <input
                   type="text"
                   v-model="tempSettings.schemaFilePath"
-                  class="font-input"
+                  class="font-input schema-input"
                   placeholder="/schema.json"
                 />
               </label>
@@ -386,21 +389,21 @@ defineExpose({
                 />
               </label>
               
-              <div v-if="tempSettings.enableAutocomplete" class="setting-item full-width-setting">
+              <label v-if="tempSettings.enableAutocomplete" class="setting-item">
                 <div class="setting-label">
                   <div class="setting-name">{{ labelFor('autocompleteSchemaFilePath') }}</div>
                   <div class="setting-desc">{{ descriptionFor('autocompleteSchemaFilePath') }}</div>
-                  <input
-                    type="text"
-                    v-model="tempSettings.autocompleteSchemaFilePath"
-                    placeholder="/schema.json"
-                    class="schema-path-input"
-                  />
                   <div class="setting-hint">
                     {{ t.autocompleteSchemaFilePathHint }}
                   </div>
                 </div>
-              </div>
+                <input
+                  type="text"
+                  v-model="tempSettings.autocompleteSchemaFilePath"
+                  placeholder="/schema.json"
+                  class="font-input schema-input"
+                />
+              </label>
             </div>
           </details>
 
@@ -790,6 +793,7 @@ defineExpose({
   margin: 0 -8px;
   padding-left: 8px;
   padding-right: 8px;
+  overflow: hidden;
 }
 
 .setting-item:hover {
@@ -813,6 +817,8 @@ defineExpose({
 
 .setting-label {
   flex: 1;
+  min-width: 0;
+  margin-right: 16px;
 }
 
 .setting-name {
@@ -869,7 +875,8 @@ defineExpose({
 }
 
 .theme-select, .font-input {
-  width: 200px;
+  min-width: 200px;
+  max-width: 280px;
   padding: 8px 12px;
   border: 1.5px solid var(--border, #e5e7eb);
   border-radius: 6px;
@@ -879,6 +886,7 @@ defineExpose({
   color: var(--text-primary, #1f2328);
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .theme-select:hover, .font-input:hover {
@@ -893,51 +901,18 @@ defineExpose({
   background: #fefefe;
 }
 
-.full-width-setting {
-  display: block !important;
-  padding: 16px 0;
-}
-
-.full-width-setting .setting-label {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.schema-path-input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1.5px solid var(--border, #e5e7eb);
-  border-radius: 6px;
-  font-size: 13px;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  background: var(--bg-panel, #fff);
-  color: var(--text-primary, #1f2328);
-  transition: all 0.2s ease;
-}
-
-.schema-path-input:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.05);
-}
-
-.schema-path-input:focus {
-  outline: none;
-  border-color: var(--brand, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
-}
-
-.schema-path-input::placeholder {
-  color: #9ca3af;
-  font-style: italic;
-}
-
 .setting-hint {
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 12px;
   color: var(--text-secondary, #6b7280);
   line-height: 1.5;
   font-style: italic;
+}
+
+.schema-input {
+  min-width: 200px;
+  max-width: 280px;
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
 }
 
 .modal-footer {
