@@ -777,8 +777,25 @@ function createWrappedLinter(options: JSONValidationOptions) {
   };
 }
 
+/**
+ * Schema 校验配置接口
+ */
+export interface SchemaValidationConfig {
+  enabled: boolean; // 是否启用 Schema 校验
+  delay: number; // 延迟时间（毫秒）
+}
+
+/**
+ * 默认 Schema 校验配置
+ */
+const defaultSchemaConfig: SchemaValidationConfig = {
+  enabled: false,
+  delay: 800,
+};
+
 // 创建 JSON Schema 扩展（使用 codemirror-json-schema 官方包）
 let schemaExtensionPromise: Promise<Extension[]> | null = null;
+let lastConfig: SchemaValidationConfig | null = null;
 let lastLocale: 'zh' | 'en' = getCurrentLocale();
 
 // 自定义 needsRefresh 函数，检测语言变化
@@ -798,11 +815,27 @@ function needsRefreshWithLocale(vu: ViewUpdate): boolean {
   return handleRefresh(vu);
 }
 
-export async function jsonSchema(): Promise<Extension[]> {
-  if (schemaExtensionPromise) {
+/**
+ * 创建 Schema 校验扩展（支持配置）
+ */
+export async function createJsonSchemaExtension(config: SchemaValidationConfig = defaultSchemaConfig): Promise<Extension[]> {
+  // 如果禁用，返回空扩展
+  if (!config.enabled) {
+    return [];
+  }
+  
+  // 如果配置相同且已有 Promise，返回缓存的扩展
+  if (lastConfig && 
+      lastConfig.enabled === config.enabled &&
+      lastConfig.delay === config.delay &&
+      schemaExtensionPromise) {
     return schemaExtensionPromise;
   }
   
+  // 更新最后使用的配置
+  lastConfig = config;
+  
+  // 创建新的 Promise
   schemaExtensionPromise = (async () => {
     const schema = await getSchema();
     const options: JSONValidationOptions = {
@@ -813,10 +846,9 @@ export async function jsonSchema(): Promise<Extension[]> {
       // 设置 schema 状态
       ...stateExtensions(schema),
       // 添加 linter（包装以提取错误）
-      // delay: 800ms - 文档变更后延迟 800ms 再运行 linter，避免与手动编辑冲突
       linter(createWrappedLinter(options), {
         needsRefresh: needsRefreshWithLocale,
-        delay: 800, // 延迟 800ms 再验证
+        delay: config.delay, // 使用配置的延迟时间
       }),
     ];
   })();
@@ -824,8 +856,25 @@ export async function jsonSchema(): Promise<Extension[]> {
   return schemaExtensionPromise;
 }
 
-// 同步版本：返回占位扩展（用于初始化，实际会在异步加载后应用）
+/**
+ * 导出 Schema 校验扩展（向后兼容的默认导出）
+ */
+export async function jsonSchema(): Promise<Extension[]> {
+  return createJsonSchemaExtension({ enabled: true, delay: 800 });
+}
+
+/**
+ * 同步版本：返回占位扩展（用于初始化，实际会在异步加载后应用）
+ */
 export function jsonSchemaSync(): Extension[] {
   // 先返回空扩展，然后在后台加载并更新
   return [];
+}
+
+/**
+ * 清理 Schema 扩展缓存（用于配置变化时的重建）
+ */
+export function clearSchemaExtensionCache() {
+  schemaExtensionPromise = null;
+  lastConfig = null;
 }

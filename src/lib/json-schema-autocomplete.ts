@@ -838,18 +838,48 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
   return null;
 }
 
-// 导出自动补全扩展
-export function jsonSchemaAutocompleteExtension() {
+/**
+ * 自动补全配置接口
+ */
+export interface AutocompleteConfig {
+  enabled: boolean; // 是否启用自动补全
+  activateOnTyping: boolean; // 输入时自动触发
+  delay: number; // 延迟时间（毫秒）
+}
+
+/**
+ * 默认自动补全配置
+ */
+const defaultAutocompleteConfig: AutocompleteConfig = {
+  enabled: true,
+  activateOnTyping: true,
+  delay: 0,
+};
+
+/**
+ * 创建自动补全扩展（支持配置）
+ */
+export function createJsonSchemaAutocompleteExtension(config: AutocompleteConfig = defaultAutocompleteConfig) {
+  // 如果禁用，返回空扩展
+  if (!config.enabled) {
+    return [];
+  }
+  
   return autocompletion({
-    // 允许在任何字符输入时触发补全（类似 VSCode 的行为）
-    activateOnTyping: true,
-    // 延迟 0 毫秒，立即显示
-    activateOnTypingDelay: 0,
+    activateOnTyping: config.activateOnTyping,
+    activateOnTypingDelay: config.delay,
     override: [
       async (context: CompletionContext) => {
         return await jsonSchemaAutocomplete(context);
       },
     ],
   });
+}
+
+/**
+ * 导出自动补全扩展（向后兼容的默认导出）
+ */
+export function jsonSchemaAutocompleteExtension() {
+  return createJsonSchemaAutocompleteExtension();
 }
 
