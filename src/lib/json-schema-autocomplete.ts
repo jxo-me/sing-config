@@ -1247,9 +1247,96 @@ export async function jsonSchemaAutocomplete(context: CompletionContext): Promis
     if (completions.length > 0) {
       // 计算补全起始位置
       const line = context.state.doc.lineAt(context.pos);
-      const beforeCursor = line.text.substring(0, context.pos - line.from);
-      const match = beforeCursor.match(/["']?([^"',}\]]*)$/);
-      const from = match ? context.pos - match[1].length : context.pos;
+      const lineText = line.text;
+      const lineStart = line.from;
+      const beforeCursor = lineText.substring(0, context.pos - lineStart);
+      
+      console.log('[Autocomplete] 值补全位置计算:', {
+        pos: context.pos,
+        lineStart,
+        beforeCursor,
+        lineText,
+      });
+      
+      // 查找冒号后的位置（跳过可能的空格）
+      const colonIndex = beforeCursor.lastIndexOf(':');
+      let from = context.pos;
+      
+      if (colonIndex >= 0) {
+        // 找到冒号后的内容
+        const afterColonRaw = beforeCursor.substring(colonIndex + 1);
+        // 检查是否有引号
+        const hasQuote = afterColonRaw.trim().startsWith('"');
+        
+        // 跳过空白
+        let afterColon = afterColonRaw.trim();
+        // 如果以引号开头，跳过引号
+        if (afterColon.startsWith('"')) {
+          afterColon = afterColon.substring(1);
+          // 如果还有结束引号，跳过
+          if (afterColon.endsWith('"')) {
+            afterColon = afterColon.substring(0, afterColon.length - 1);
+          }
+        }
+        
+        // from 应该是冒号后的第一个非空格位置
+        // 如果已经输入了部分值内容（在引号内），from 应该在内容开始位置
+        if (afterColon.length > 0) {
+          // 已经输入了部分内容，from 应该在这些内容之前
+          // 需要找到实际的内容开始位置（跳过空白和引号）
+          const colonPos = lineStart + colonIndex + 1;
+          let contentStart = colonPos;
+          // 跳过空白
+          while (contentStart < context.pos && /\s/.test(lineText[contentStart - lineStart])) {
+            contentStart++;
+          }
+          // 跳过引号
+          if (hasQuote && lineText[contentStart - lineStart] === '"') {
+            contentStart++;
+          }
+          from = contentStart;
+        } else {
+          // 没有输入内容，from 应该就在光标位置
+          // 但为了确保显示补全，我们需要确保 from < to
+          // 如果 from === to，CodeMirror 可能不会显示补全
+          from = context.pos;
+        }
+      } else {
+        // 没找到冒号，使用当前光标位置
+        from = context.pos;
+      }
+      
+      // 检查是否在字符串内
+      const quotesBefore = (beforeCursor.match(/"/g) || []).length;
+      const isInString = quotesBefore % 2 === 1; // 奇数个引号说明在字符串内
+      
+      if (isInString) {
+        // 在字符串内，找到字符串开始的位置
+        const stringStart = beforeCursor.lastIndexOf('"');
+        if (stringStart >= 0) {
+          from = lineStart + stringStart + 1; // 在引号后
+        }
+      }
+      
+      // 关键修复：确保 from < to，否则 CodeMirror 不会显示补全气泡
+      // 如果 from === to，说明没有要替换的内容，设置为替换一个空字符串
+      if (from >= context.pos) {
+        // from 应该小于 to，否则无法显示补全
+        // 在这种情况下，我们至少替换光标前的一个字符或空字符串
+        from = Math.max(0, context.pos - 1);
+        // 如果 from 还是 >= to，使用当前位置
+        if (from >= context.pos) {
+          from = context.pos;
+        }
+      }
+      
+      console.log('[Autocomplete] 值补全最终位置:', {
+        from,
+        to: context.pos,
+        '替换范围长度': context.pos - from,
+        '替换内容': lineText.substring(from - lineStart, context.pos - lineStart),
+        isInString,
+      });
       
       return {
         from,
