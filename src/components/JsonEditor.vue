@@ -163,17 +163,25 @@ async function buildExtensions(): Promise<Extension[]> {
     }
   };
   
-  // 移除 indentWithTab，添加 Tab 键补全
-  // Tab 键映射放在最前面，优先级最高，会覆盖默认的缩进行为
+  // Tab 键触发补全（移除缩进功能）
+  // 注意：在 CodeMirror 6 中，keymap 的顺序很重要
+  // 后添加的 keymap 会覆盖先添加的相同按键处理
+  // 所以先把 defaultKeymap 和 searchKeymap 添加
+  extensions.push(keymap.of([...defaultKeymap, ...searchKeymap]));
+  
+  // 然后添加 Tab 键的处理，这样会覆盖 defaultKeymap 中可能存在的 Tab 处理
   extensions.push(keymap.of([
     {
       key: 'Tab',
       run: tabAutocompleteCommand,
+      // 可选：添加 shift 修饰键的处理
+      shift: (view: any) => {
+        // Shift+Tab 可以保留为取消缩进（如果需要）
+        console.log('[JsonEditor] Shift+Tab 按下');
+        return false; // 使用默认行为（取消缩进）
+      },
     },
   ]));
-  
-  // 添加其他快捷键（不包括 Tab，因为我们已经在上面处理了）
-  extensions.push(keymap.of([...defaultKeymap, ...searchKeymap]));
   
   // 文档变更监听
   extensions.push(EditorView.updateListener.of((update) => {
